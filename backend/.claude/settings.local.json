@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find D:/Programiring/TaroSideIA/backend/TaroSideAI.Application -type f -name *.cs)",
+      "Bash(find D:/Programiring/TaroSideIA/backend/TaroSideAI.Infrastructure -type f -name *.cs)",
+      "Bash(find D:/Programiring/TaroSideIA/backend/TaroSideAI.API -type f -name *.cs)",
+      "Read(//d/Programiring/TaroSideIA/**)",
+      "Bash(find . -not -path */node_modules/* -not -path */bin/* -not -path */obj/* -type f)",
+      "Bash(dotnet build:*)"
+    ]
+  }
+}
