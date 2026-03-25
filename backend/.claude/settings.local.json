@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find D:/Programiring/TaroSideIA/backend/TaroSideAI.Application -type f -name *.cs)",
+      "Bash(find D:/Programiring/TaroSideIA/backend/TaroSideAI.Infrastructure -type f -name *.cs)",
+      "Bash(find D:/Programiring/TaroSideIA/backend/TaroSideAI.API -type f -name *.cs)"
+    ]
+  }
+}
