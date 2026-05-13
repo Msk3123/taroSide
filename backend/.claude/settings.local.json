@@ -6,7 +6,9 @@
       "Bash(find D:/Programiring/TaroSideIA/backend/TaroSideAI.API -type f -name *.cs)",
       "Read(//d/Programiring/TaroSideIA/**)",
       "Bash(find . -not -path */node_modules/* -not -path */bin/* -not -path */obj/* -type f)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(npx tsc *)",
+      "PowerShell(cmd /c \"cd /d D:\\\\Programiring\\\\TaroSideIA\\\\frontend && npx tsc --noEmit 2>&1\")"
     ]
   }
 }
