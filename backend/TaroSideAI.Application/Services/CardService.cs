@@ -27,6 +27,8 @@ public class CardService
             Suit = dto.Suit,
             UprightMeaning = dto.UprightMeaning,
             ReversedMeaning = dto.ReversedMeaning,
+            Keywords = dto.Keywords,
+            Symbol = dto.Symbol,
             ImageUrl = dto.ImageUrl
         };
 
@@ -43,4 +45,6 @@ public class CardService
     {
         return await _cardRepository.GetAllAsync();
     }
+
+    
 }

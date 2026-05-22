@@ -14,4 +14,6 @@ public class AppUser : IdentityUser<Guid>
 
     // Навігаційні властивості для EF Core
     public ICollection<Reading> Readings { get; set; } = [];
+    public int DailyChatMessagesUsed { get; set; } = 0;
+    
 }

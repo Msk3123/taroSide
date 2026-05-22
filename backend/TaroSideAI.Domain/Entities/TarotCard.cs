@@ -14,6 +14,12 @@ public class TarotCard
 
     public string UprightMeaning { get; set; } = string.Empty;
     public string ReversedMeaning { get; set; } = string.Empty;
+
+    // Короткі ключові слова для відображення (напр. "Початок · Невинність")
+    public string Keywords { get; set; } = string.Empty;
+    // Декоративний символ карти (напр. "✦", "☾")
+    public string Symbol { get; set; } = string.Empty;
+
     public string? ImageUrl { get; set; }
 
     public ICollection<ReadingCard> ReadingCards { get; set; } = [];

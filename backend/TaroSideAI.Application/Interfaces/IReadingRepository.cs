@@ -5,11 +5,11 @@ namespace TaroSideAI.Application.Interfaces;
 public interface IReadingRepository
 {
     
-    Task<Reading> GetReadingById(Guid id);
-    Task<Reading> CreateReading(Reading reading);
-    Task<Reading> UpdateReading(Reading reading);
-    Task<Reading> DeleteReading(Guid id);
-    Task<List<Reading>> GetAllReadings();
-    Task<List<Reading>> GetReadingsByUserId(Guid userId);
-    
+    Task<Reading> GetReadingByIdAsync(Guid id);
+    Task<Reading> CreateReadingAsync(Reading reading);
+    Task<Reading> UpdateReadingAsync(Reading reading);
+    Task<bool> DeleteReadingAsync(Guid id);
+
+    Task<int> CountTodayByUserAsync(Guid userId);
+    Task<List<Reading>> GetAllReadingsAsync(Guid userId);
 }

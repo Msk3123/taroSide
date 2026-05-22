@@ -81,6 +81,11 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<ICardRepository, CardRepository>();
 builder.Services.AddScoped<CardService>();
 
+builder.Services.AddScoped<ISpreadRepository, SpreadRepository>();
+builder.Services.AddScoped<SpreadService>();
+
+
+
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();

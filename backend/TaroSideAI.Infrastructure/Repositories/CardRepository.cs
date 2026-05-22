@@ -9,10 +9,6 @@ namespace TaroSideAI.Infrastructure.Repositories;
 // Тут вже можна використовувати EF Core і AppDbContext —
 // бо це Infrastructure, а не Application чи Domain.
 public class CardRepository : ICardRepository
-
- 
-
-    
 {
     private readonly AppDbContext _db;
 
@@ -36,5 +32,14 @@ public class CardRepository : ICardRepository
     public async Task<List<TarotCard>> GetAllAsync()
     {
         return await _db.TarotCards.ToListAsync();
+    }
+    
+    public async Task<List<TarotCard>> GetRandomCardAsync(int countCard)
+    {
+        var allCards = await _db.TarotCards.ToListAsync();
+        return allCards
+            .OrderBy(_ => Random.Shared.Next())
+            .Take(countCard)
+            .ToList();
     }
 }

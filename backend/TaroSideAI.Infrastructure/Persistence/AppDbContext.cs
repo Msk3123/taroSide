@@ -16,6 +16,9 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
     public DbSet<Spread> Spreads => Set<Spread>();
     public DbSet<Reading> Readings => Set<Reading>();
     public DbSet<ReadingCard> ReadingCards => Set<ReadingCard>();
+    
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<Message> Messages => Set<Message>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

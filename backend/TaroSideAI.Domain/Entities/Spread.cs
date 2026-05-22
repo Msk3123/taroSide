@@ -13,4 +13,6 @@ public class Spread
     public UserRole RequiredRole { get; set; } = UserRole.Free;
 
     public ICollection<Reading> Readings { get; set; } = [];
+    
+    public bool IsFreeMode { get; set; }
 }

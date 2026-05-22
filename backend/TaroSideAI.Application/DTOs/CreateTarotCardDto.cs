@@ -17,5 +17,7 @@ public class CreateTarotCardDto
 
     public string UprightMeaning { get; set; } = string.Empty;
     public string ReversedMeaning { get; set; } = string.Empty;
+    public string Keywords { get; set; } = string.Empty;
+    public string Symbol { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }
 }
