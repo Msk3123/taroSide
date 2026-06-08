@@ -18,7 +18,7 @@ export default function Register() {
     setError(null)
     setLoading(true)
     try {
-      await api('/api/user', {
+      await api('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify(form),
       })

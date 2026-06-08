@@ -2,8 +2,10 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.AI;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using OllamaSharp;
 using TaroSideAI.Application.Interfaces;
 using TaroSideAI.Application.Options;
 using TaroSideAI.Application.Services;
@@ -78,17 +80,33 @@ builder.Services.AddCors(options =>
 // 5. APPLICATION SERVICES & REPOSITORIES
 // ──────────────────────────────────────────────
 // Scoped = один екземпляр на HTTP запит (стандарт для репозиторіїв і сервісів)
+
+builder.Services.Configure<AiSettings>(builder.Configuration.GetSection("Ollama"));
+
+builder.Services.AddSingleton<IChatClient>(sp =>
+{
+    var cfg = builder.Configuration.GetSection("Ollama").Get<AiSettings>()!;
+    IChatClient ollama = new OllamaApiClient(new Uri(cfg.OpenAiApiUrl), cfg.OpenAiModel);
+    return new ChatClientBuilder(ollama)
+        .UseFunctionInvocation()
+        .Build();
+});
+
 builder.Services.AddScoped<ICardRepository, CardRepository>();
 builder.Services.AddScoped<CardService>();
 
 builder.Services.AddScoped<ISpreadRepository, SpreadRepository>();
 builder.Services.AddScoped<SpreadService>();
 
+builder.Services.AddScoped<IChatAiService, ChatAiService>();
 
+builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
+builder.Services.AddScoped<ConversationService>();
 
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
+
 
 // ──────────────────────────────────────────────
 // 6. CONTROLLERS + SWAGGER
