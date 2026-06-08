@@ -1,28 +1,32 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Nav from '../components/Nav'
-import { api, auth, userApi, type CurrentUser } from '../lib/api'
+import {
+  auth,
+  authApi,
+  conversationApi,
+  userApi,
+  UNLIMITED,
+  type CurrentUser,
+  type UserUsage,
+} from '../lib/api'
 
 /**
- * Profile — особистий кабінет з 4 вкладками.
+ * Profile — особистий кабінет.
  *
- * Backend wiring:
- *   - Tab "Акаунт" → справжній PUT /api/User/{id} (UserName + Email)
- *   - Tab "Безпека" → UI готовий, бекенд для зміни пароля / 2FA / сесій ще не написано
- *     (треба додати endpoints у AuthController). Кнопки показують toast як placeholder.
- *   - Tab "Налаштування" → preferences треба зберігати у новому полі (наприклад,
- *     AppUser.Preferences як JSON, або окрема таблиця UserPreferences).
- *   - Tab "Статистика" → потребує GROUP BY-запит над Reading + ReadingCard;
- *     поки що mock-числа з дизайну.
+ * Усі дані тепер справжні:
+ *   - Tab "Акаунт"  → PUT /api/User/{id} (UserName + Email) + реальні денні ліміти.
+ *   - Tab "Безпека" → POST /api/auth/change-password (реальна зміна пароля).
+ *   - Tab "Статистика" → агрегати з реальних даних (розмови + денне використання).
  *
- * Avatar — генеруємо з першої літери userName (як у дизайні: великий "R").
+ * Прибрано заглушки: фейкові сесії, 2FA-перемикачі, mock-числа статистики,
+ * не-збережувані поля (ім'я/дата народження) і вкладку «Налаштування» без бекенду.
  */
-type Tab = 'account' | 'security' | 'prefs' | 'stats'
+type Tab = 'account' | 'security' | 'stats'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'account', label: 'Акаунт' },
   { id: 'security', label: 'Безпека' },
-  { id: 'prefs', label: 'Налаштування' },
   { id: 'stats', label: 'Статистика' },
 ]
 
@@ -30,21 +34,26 @@ const ROLE_LABEL: Record<CurrentUser['role'], string> = {
   Guest: 'Гість',
   Free: 'Подорожник',
   Premium: 'Pro · Оракул',
+  Vip: 'VIP · Містик',
+  Admin: 'Адмін',
+}
+
+function limitText(used: number, limit: number): string {
+  return `${used} / ${limit >= UNLIMITED ? '∞' : limit}`
 }
 
 export default function Profile() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('account')
   const [user, setUser] = useState<CurrentUser | null>(null)
+  const [usage, setUsage] = useState<UserUsage | null>(null)
+  const [conversationCount, setConversationCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const [form, setForm] = useState({
-    userName: '',
-    email: '',
-    firstName: '',
-    dateOfBirth: '',
-  })
+  const [form, setForm] = useState({ userName: '', email: '' })
+  const [pwd, setPwd] = useState({ current: '', next: '', confirm: '' })
   const [saving, setSaving] = useState(false)
+  const [changingPwd, setChangingPwd] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
@@ -52,22 +61,26 @@ export default function Profile() {
       navigate('/login')
       return
     }
-    api<CurrentUser>('/api/user/me')
+    userApi
+      .me()
       .then(data => {
         setUser(data)
         auth.setUser(data)
-        setForm(f => ({ ...f, userName: data.userName, email: data.email }))
+        setForm({ userName: data.userName, email: data.email })
       })
       .catch(() => {
         auth.clearToken()
         navigate('/login')
       })
       .finally(() => setLoading(false))
+
+    userApi.usage().then(setUsage).catch(() => {})
+    conversationApi.list().then(list => setConversationCount(list.length)).catch(() => {})
   }, [])
 
   const showToast = (msg: string) => {
     setToast(msg)
-    setTimeout(() => setToast(null), 2000)
+    setTimeout(() => setToast(null), 2400)
   }
 
   const handleSaveAccount = async (e: FormEvent) => {
@@ -85,9 +98,28 @@ export default function Profile() {
       showToast('✦ Збережено')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Помилка збереження'
-      showToast(`✕ ${msg.slice(0, 60)}`)
+      showToast(`✕ ${msg.slice(0, 80)}`)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleChangePassword = async (e: FormEvent) => {
+    e.preventDefault()
+    if (pwd.next !== pwd.confirm) {
+      showToast('✕ Паролі не збігаються')
+      return
+    }
+    setChangingPwd(true)
+    try {
+      await authApi.changePassword(pwd.current, pwd.next)
+      setPwd({ current: '', next: '', confirm: '' })
+      showToast('✦ Пароль оновлено')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Помилка зміни пароля'
+      showToast(`✕ ${msg.slice(0, 90)}`)
+    } finally {
+      setChangingPwd(false)
     }
   }
 
@@ -142,24 +174,14 @@ export default function Profile() {
           <form className="pf-grid fade-up d3" onSubmit={handleSaveAccount}>
             <div className="panel">
               <h2>Особисті дані</h2>
-              <div className="panel-sub">Ім'я та публічний профіль</div>
-              <div className="row-2">
-                <div className="field">
-                  <label>Ім'я</label>
-                  <input
-                    value={form.firstName}
-                    onChange={e => setForm({ ...form, firstName: e.target.value })}
-                    placeholder="Raven"
-                  />
-                </div>
-                <div className="field">
-                  <label>Псевдонім</label>
-                  <input
-                    value={form.userName}
-                    onChange={e => setForm({ ...form, userName: e.target.value })}
-                    required
-                  />
-                </div>
+              <div className="panel-sub">Псевдонім та email</div>
+              <div className="field">
+                <label>Псевдонім</label>
+                <input
+                  value={form.userName}
+                  onChange={e => setForm({ ...form, userName: e.target.value })}
+                  required
+                />
               </div>
               <div className="field">
                 <label>Email</label>
@@ -170,17 +192,6 @@ export default function Profile() {
                   required
                 />
               </div>
-              <div className="field">
-                <label>
-                  Дата народження{' '}
-                  <span className="label-hint">— для астро-контексту</span>
-                </label>
-                <input
-                  type="date"
-                  value={form.dateOfBirth}
-                  onChange={e => setForm({ ...form, dateOfBirth: e.target.value })}
-                />
-              </div>
               <div className="actions">
                 <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? 'Збереження…' : 'Зберегти'}
@@ -188,14 +199,7 @@ export default function Profile() {
                 <button
                   type="button"
                   className="btn btn-ghost"
-                  onClick={() =>
-                    setForm({
-                      userName: user.userName,
-                      email: user.email,
-                      firstName: '',
-                      dateOfBirth: '',
-                    })
-                  }
+                  onClick={() => setForm({ userName: user.userName, email: user.email })}
                 >
                   Скасувати
                 </button>
@@ -204,7 +208,7 @@ export default function Profile() {
 
             <div className="panel">
               <h2>Підписка</h2>
-              <div className="panel-sub">Поточний пакет</div>
+              <div className="panel-sub">Поточний пакет і денні ліміти</div>
               <div className="stat-row">
                 <span className="lab">План</span>
                 <span className="val plan-tag">{ROLE_LABEL[user.role]}</span>
@@ -215,121 +219,70 @@ export default function Profile() {
               </div>
               <div className="stat-row">
                 <span className="lab">Розкладів сьогодні</span>
-                <span className="val">4 / 9</span>
+                <span className="val">
+                  {usage ? limitText(usage.readingsUsed, usage.readingsLimit) : '…'}
+                </span>
               </div>
-              <div className="actions">
-                <Link to="/pricing" className="btn btn-primary">
-                  Перейти на Pro →
-                </Link>
+              <div className="stat-row">
+                <span className="lab">Повідомлень сьогодні</span>
+                <span className="val">
+                  {usage ? limitText(usage.chatMessagesUsed, usage.chatMessagesLimit) : '…'}
+                </span>
               </div>
+              {user.role !== 'Vip' && user.role !== 'Admin' && (
+                <div className="actions">
+                  <Link to="/pricing" className="btn btn-primary">
+                    Перейти на Pro →
+                  </Link>
+                </div>
+              )}
             </div>
           </form>
         </div>
 
         {/* SECURITY */}
         <div className={`pane${tab === 'security' ? ' on' : ''}`} role="tabpanel">
-          <div className="pf-grid fade-up d3">
+          <form className="pf-grid fade-up d3" onSubmit={handleChangePassword}>
             <div className="panel">
               <h2>Зміна пароля</h2>
               <div className="panel-sub">Оновити секрет</div>
               <div className="field">
                 <label>Поточний пароль</label>
-                <input type="password" placeholder="••••••••" />
+                <input
+                  type="password"
+                  value={pwd.current}
+                  onChange={e => setPwd({ ...pwd, current: e.target.value })}
+                  placeholder="••••••••"
+                  required
+                />
               </div>
               <div className="field">
                 <label>Новий пароль</label>
-                <input type="password" placeholder="••••••••" />
+                <input
+                  type="password"
+                  value={pwd.next}
+                  onChange={e => setPwd({ ...pwd, next: e.target.value })}
+                  placeholder="Мінімум 8 символів"
+                  required
+                />
               </div>
               <div className="field">
                 <label>Підтвердити</label>
-                <input type="password" placeholder="••••••••" />
+                <input
+                  type="password"
+                  value={pwd.confirm}
+                  onChange={e => setPwd({ ...pwd, confirm: e.target.value })}
+                  placeholder="••••••••"
+                  required
+                />
               </div>
               <div className="actions">
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => showToast('✦ TODO: AuthController.ChangePassword')}
-                >
-                  Оновити пароль
+                <button type="submit" className="btn btn-primary" disabled={changingPwd}>
+                  {changingPwd ? 'Оновлення…' : 'Оновити пароль'}
                 </button>
               </div>
             </div>
-
-            <div className="panel">
-              <h2>Двофакторна автентифікація</h2>
-              <div className="panel-sub">Додаткова печать на дверях</div>
-              <ToggleRow
-                title="Email-код при вході"
-                sub="Кожен раз з нового пристрою"
-                defaultOn
-              />
-              <ToggleRow title="Authenticator app" sub="TOTP (Google / Authy)" />
-              <ToggleRow
-                title="Сповіщення про вхід"
-                sub="Email при підозрілому пристрої"
-                defaultOn
-              />
-            </div>
-
-            <div className="panel panel-full">
-              <h2>Активні сеанси</h2>
-              <div className="panel-sub">Пристрої з доступом до акаунта</div>
-              <div className="stat-row">
-                <div>
-                  <div className="t-row-title">Chrome · macOS · Київ</div>
-                  <div className="t-row-sub">Поточний сеанс · щойно</div>
-                </div>
-                <span className="pf-tag pf-tag-soft">Активний</span>
-              </div>
-              <SessionRow device="Safari · iPhone · Львів" when="14 годин тому" />
-              <SessionRow device="Firefox · Windows · Невідомо" when="5 днів тому" />
-            </div>
-          </div>
-        </div>
-
-        {/* PREFS */}
-        <div className={`pane${tab === 'prefs' ? ' on' : ''}`} role="tabpanel">
-          <div className="pf-grid fade-up d3">
-            <div className="panel">
-              <h2>Сповіщення</h2>
-              <div className="panel-sub">Що надсилати на email</div>
-              <ToggleRow
-                title="Картка дня"
-                sub="Щоранку — одна карта-настанова"
-                defaultOn
-              />
-              <ToggleRow
-                title="Місячні цикли"
-                sub="Нагадування про повний місяць"
-                defaultOn
-              />
-              <ToggleRow title="Новини та оновлення" sub="Нові розклади, статті, акції" />
-              <ToggleRow title="Маркетинг" sub="Спецпропозиції на Pro" />
-            </div>
-
-            <div className="panel">
-              <h2>Інтерфейс</h2>
-              <div className="panel-sub">Зовнішність та мова</div>
-              <div className="field">
-                <label>Мова</label>
-                <select defaultValue="uk">
-                  <option value="uk">Українська</option>
-                  <option value="en">English</option>
-                  <option value="pl">Polski</option>
-                </select>
-              </div>
-              <div className="field">
-                <label>Часовий пояс</label>
-                <select defaultValue="kyiv">
-                  <option value="kyiv">Europe/Kyiv (UTC+3)</option>
-                  <option value="warsaw">Europe/Warsaw (UTC+2)</option>
-                  <option value="utc">UTC</option>
-                </select>
-              </div>
-              <ToggleRow title="Звуки розкладу" sub="Звук перемішування карт" defaultOn />
-              <ToggleRow title="Зменшити анімації" sub="Для слабшого пристрою" />
-            </div>
-          </div>
+          </form>
         </div>
 
         {/* STATS */}
@@ -337,40 +290,23 @@ export default function Profile() {
           <div className="pf-grid fade-up d3">
             <div className="panel">
               <h2>Ваша подорож</h2>
-              <div className="panel-sub">Загальні цифри</div>
-              <Stat lab="Усього розкладів" val="128" />
-              <Stat lab="З них на 3 карти" val="94" />
-              <Stat lab="На 5 карт" val="28" />
-              <Stat lab="На 7 карт" val="6" />
-              <Stat lab="Збережено в журналі" val="42" />
-            </div>
-
-            <div className="panel">
-              <h2>Часті карти</h2>
-              <div className="panel-sub">Які з'являються найчастіше</div>
-              <Stat lab="☾ Місяць · XVIII" val="14×" />
-              <Stat lab="⚔ Колісниця · VII" val="11×" />
-              <Stat lab="⚖ Справедливість · XI" val="9×" />
-              <Stat lab="☉ Сонце · XIX" val="8×" />
-              <Stat lab="⚝ Самітник · IX" val="7×" />
+              <div className="panel-sub">Реальні цифри вашого акаунта</div>
+              <Stat lab="Усього розмов" val={conversationCount !== null ? String(conversationCount) : '…'} />
+              <Stat
+                lab="Розкладів сьогодні"
+                val={usage ? limitText(usage.readingsUsed, usage.readingsLimit) : '…'}
+              />
+              <Stat
+                lab="Повідомлень сьогодні"
+                val={usage ? limitText(usage.chatMessagesUsed, usage.chatMessagesLimit) : '…'}
+              />
+              <Stat lab="Карт у розкладі (макс)" val={usage ? String(usage.maxCards) : '…'} />
+              <Stat lab="Учасник з" val={registeredDate} />
             </div>
 
             <div className="panel danger panel-full">
               <h2>Небезпечна зона</h2>
               <div className="panel-sub">Назад дороги не буде</div>
-              <div className="toggle-row">
-                <div>
-                  <div className="t">Експортувати дані</div>
-                  <div className="s">Завантажити всі розклади та нотатки (GDPR)</div>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => showToast('✦ TODO: експорт у JSON/PDF')}
-                >
-                  Завантажити →
-                </button>
-              </div>
               <div className="toggle-row">
                 <div>
                   <div className="t t-danger">Видалити акаунт</div>
@@ -381,9 +317,15 @@ export default function Profile() {
                 <button
                   type="button"
                   className="btn-danger"
-                  onClick={() => {
-                    if (confirm('Ви впевнені? Це не можна скасувати.')) {
-                      showToast('✕ Запит на видалення прийнято')
+                  onClick={async () => {
+                    if (!confirm('Ви впевнені? Це не можна скасувати.')) return
+                    try {
+                      await userApi.remove(user.id)
+                      auth.clearToken()
+                      navigate('/register')
+                    } catch (err) {
+                      const msg = err instanceof Error ? err.message : 'Помилка'
+                      showToast(`✕ ${msg.slice(0, 80)}`)
                     }
                   }}
                 >
@@ -399,46 +341,6 @@ export default function Profile() {
         {toast}
       </div>
     </>
-  )
-}
-
-/* ----------------- маленькі підкомпоненти ----------------- */
-
-function ToggleRow({
-  title,
-  sub,
-  defaultOn = false,
-}: {
-  title: string
-  sub: string
-  defaultOn?: boolean
-}) {
-  const [on, setOn] = useState(defaultOn)
-  return (
-    <div className="toggle-row">
-      <div>
-        <div className="t">{title}</div>
-        <div className="s">{sub}</div>
-      </div>
-      <label className="switch">
-        <input type="checkbox" checked={on} onChange={e => setOn(e.target.checked)} />
-        <span />
-      </label>
-    </div>
-  )
-}
-
-function SessionRow({ device, when }: { device: string; when: string }) {
-  return (
-    <div className="stat-row">
-      <div>
-        <div className="t-row-title">{device}</div>
-        <div className="t-row-sub">{when}</div>
-      </div>
-      <button type="button" className="btn-danger btn-danger-sm">
-        Завершити
-      </button>
-    </div>
   )
 }
 

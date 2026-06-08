@@ -2,7 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaroSideAI.Application.DTOs;
-using TaroSideAI.Application.Services;
+using TaroSideAI.Application.Interfaces;
 using TaroSideAI.Domain.Entities;
 namespace TaroSideAI.API.Controllers;
 
@@ -11,8 +11,8 @@ namespace TaroSideAI.API.Controllers;
 
 public class UserController : ControllerBase
 {
-    private readonly UserService _userService;
-    public UserController(UserService userService)
+    private readonly IUserService _userService;
+    public UserController(IUserService userService)
     {
         _userService = userService;
     }
@@ -68,5 +68,16 @@ public class UserController : ControllerBase
         });
 
     }
-    
+
+    // Поточне використання денних лімітів + межі тарифу (для сайдбару чату й профілю).
+    [Authorize]
+    [HttpGet("usage")]
+    public async Task<ActionResult<UserUsageDto>> GetUsageAsync()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Unauthorized();
+        var usage = await _userService.GetUsageAsync(Guid.Parse(userId));
+        return Ok(usage);
+    }
+
 }

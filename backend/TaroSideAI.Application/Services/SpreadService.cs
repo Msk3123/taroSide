@@ -4,7 +4,7 @@ using TaroSideAI.Domain.Entities;
 
 namespace TaroSideAI.Application.Services;
 
-public class SpreadService 
+public class SpreadService : ISpreadService
 {
     private readonly ISpreadRepository _spreadRepository;
     public SpreadService(ISpreadRepository spreadRepository)

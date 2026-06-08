@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using TaroSideAI.Application.Services;
+using TaroSideAI.Application.Interfaces;
 
 namespace TaroSideAI.API.Controllers;
 
@@ -7,9 +7,9 @@ namespace TaroSideAI.API.Controllers;
 [Route("api/[controller]")] // → /api/spreads
 public class SpreadsController : ControllerBase
 {
-    private readonly SpreadService _spreadService;
+    private readonly ISpreadService _spreadService;
 
-    public SpreadsController(SpreadService spreadService)
+    public SpreadsController(ISpreadService spreadService)
     {
         _spreadService = spreadService;
     }

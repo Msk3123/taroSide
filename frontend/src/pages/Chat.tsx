@@ -1,6 +1,16 @@
 import {useEffect, useRef, useState} from 'react'
-import {Link} from 'react-router-dom'
+import {Link, useNavigate} from 'react-router-dom'
 import BrandMark from '../components/BrandMark'
+import {
+    auth,
+    conversationApi,
+    userApi,
+    ApiError,
+    UNLIMITED,
+    type Conversation,
+    type CurrentUser,
+    type UserUsage,
+} from '../lib/api'
 
 
 type MsgRole = 'user' | 'oracle'
@@ -19,77 +29,48 @@ interface MiniCard {
     name: string
 }
 
-interface HistoryItem {
-    id: string
-    roman: string
-    title: string
-    date: string
-    group: 'today' | 'week' | 'earlier'
-}
-
 interface ChipDef {
     id: string
     rom: string
     label: string
+    spreadId: number       // id розкладу в БД (НЕ кількість карт!)
     locked?: boolean
 }
 
-const HISTORY: HistoryItem[] = [
-    {id: 'h1', roman: 'III', title: 'Чи варто змінити роботу?', date: '14:02', group: 'today'},
-    {id: 'h2', roman: 'V', title: 'Стосунки з Мариною', date: '10:44', group: 'today'},
-    {id: 'h3', roman: 'III', title: 'Фінансовий період', date: 'Вт', group: 'week'},
-    {id: 'h4', roman: 'VII', title: 'Прихована причина тривоги', date: 'Пн', group: 'week'},
-    {id: 'h5', roman: 'III', title: 'Щоденний витяг', date: 'Пн', group: 'week'},
-    {id: 'h6', roman: 'V', title: 'Подорож на південь', date: '11.04', group: 'earlier'},
-    {id: 'h7', roman: 'III', title: 'Переїзд та родина', date: '08.04', group: 'earlier'},
-    {id: 'h8', roman: 'III', title: 'Перший розклад', date: '02.04', group: 'earlier'},
-]
-
 const CHIPS: ChipDef[] = [
-    {id: 'c3', rom: 'III', label: 'Три карти'},
-    {id: 'c5', rom: 'V', label: "П'ять карт"},
-    {id: 'c7', rom: 'VII', label: 'Сім карт'},
-    {id: 'c12', rom: 'XII', label: 'Колесо року', locked: true},
-    {id: 'cinf', rom: '∞', label: 'Вільний', locked: true},
+    {id: 'c3', rom: 'III', label: 'Три карти', spreadId: 1},
+    {id: 'c5', rom: 'V', label: "П'ять карт", spreadId: 2},
+    {id: 'c7', rom: 'VII', label: 'Сім карт', spreadId: 3},
+    {id: 'c12', rom: 'XII', label: 'Колесо року', spreadId: 4, locked: true},
+    {id: 'cinf', rom: '∞', label: 'Вільний', spreadId: 5, locked: true},
 ]
 
-const INITIAL_MESSAGES: ChatMessage[] = [
-    {
-        role: 'user',
-        who: 'Ви',
-        text: [
-            'Я вже третій рік працюю на одному місці. Зараз отримала пропозицію від іншої компанії — зарплата вища, але страшно. Чи варто зараз змінити роботу?',
-        ],
-    },
-    {
-        role: 'oracle',
-        who: 'Lunaris · Оракул',
-        text: [
-            'Дозвольте картам відповісти. Ви обрали розклад на три карти — *Минуле, Теперішнє, Майбутнє*. Перемішую колоду…',
-            '*Минуле — Справедливість.* Ваше теперішнє місце дало вам чесний досвід. Ви вивчили правила гри й більше нікому нічого не винні.',
-            '*Теперішнє — Верховна Жриця.* Ви вже знаєте відповідь у собі, але вагаєтеся довіритися їй. Прислухайтесь до внутрішнього голосу, а не до порад колег.',
-            '*Майбутнє — Колісниця.* Рух. Перемога через волю. Якщо зробите крок — він приведе туди, куди ви самі кермуєте.',
-            'Страх — природний супутник будь-якого переходу. Але карти не бачать для вас поразки на цьому шляху.',
-        ],
-        spread: [
-            {pos: 'Минуле', num: '· VIII ·', sym: '⚖', name: 'Justice'},
-            {pos: 'Теперішнє', num: '· II ·', sym: '☾', name: 'Priestess'},
-            {pos: 'Майбутнє', num: '· VII ·', sym: '⚔', name: 'Chariot'},
-        ],
-    },
-    {
-        role: 'user',
-        who: 'Ви',
-        text: ['А якщо я відмовлю — що буде?'],
-    },
-    {
-        role: 'oracle',
-        who: 'Lunaris · Оракул',
-        text: [
-            'Запитайте у карт ще раз — це вже новий розклад. Ваша Колісниця не зникне, але змінить напрям. Ви і так рухаєтеся вперед, питання лише в тому, яку дорогу обрати…',
-        ],
-    },
+/** Людська назва ролі для сайдбару/профілю. */
+const ROLE_LABEL: Record<string, string> = {
+    Guest: 'Гість',
+    Free: 'Подорожник',
+    Premium: 'Pro · Оракул',
+    Vip: 'VIP · Містик',
+    Admin: 'Адмін',
+}
+
+/** Фрази, що крутяться по колу, поки LLM генерує відповідь. */
+const THINKING_PHRASES = [
+    'Lunaris обдумує…',
+    'Слухаю карти…',
+    'Духи шепочуть…',
+    'Тасую колоду долі…',
+    'Вдивляюся у тіні…',
 ]
+
+const WELCOME: ChatMessage = {
+    role: 'oracle',
+    who: 'Lunaris · Оракул',
+    text: [
+        'Вітаю, подорожнику. Я слухаю шепіт карт у темряві ночі.',
+        'Постав своє питання — або попроси зробити розклад, і я витягну карти за завісою.',
+    ],
+}
 
 /** Render text with *italic* markers as em tags (per original design). */
 function renderText(text: string) {
@@ -99,15 +80,61 @@ function renderText(text: string) {
     )
 }
 
+/** Коротка дата для пункту історії: сьогодні → час, цей тиждень → день, інакше → дд.мм. */
+function shortDate(iso: string): {label: string; group: 'today' | 'week' | 'earlier'} {
+    const d = new Date(iso)
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const ageDays = (startOfToday.getTime() - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86_400_000
+    if (ageDays <= 0) return {label: d.toLocaleTimeString('uk-UA', {hour: '2-digit', minute: '2-digit'}), group: 'today'}
+    if (ageDays < 7) return {label: d.toLocaleDateString('uk-UA', {weekday: 'short'}), group: 'week'}
+    return {label: d.toLocaleDateString('uk-UA', {day: '2-digit', month: '2-digit'}), group: 'earlier'}
+}
+
+/** Скільки лишилось + текст (з урахуванням «безліміту»). */
+function remainingText(used: number, limit: number): string {
+    if (limit >= UNLIMITED) return '∞'
+    return `${Math.max(0, limit - used)}`
+}
+
+function barWidth(used: number, limit: number): string {
+    if (limit >= UNLIMITED || limit <= 0) return '8%'
+    return `${Math.min(100, Math.round((used / limit) * 100))}%`
+}
+
 export default function Chat() {
-    const [activeHistory, setActiveHistory] = useState('h1')
+    const navigate = useNavigate()
+    const [user, setUser] = useState<CurrentUser | null>(null)
+    const [usage, setUsage] = useState<UserUsage | null>(null)
+    const [conversations, setConversations] = useState<Conversation[]>([])
+
     const [activeChip, setActiveChip] = useState('c3')
-    const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES)
+    const [messages, setMessages] = useState<ChatMessage[]>([WELCOME])
     const [input, setInput] = useState('')
+    const [convId, setConvId] = useState<string | null>(null)  // id активної розмови
+    const [thinking, setThinking] = useState(false)
+    const [phraseIdx, setPhraseIdx] = useState(0)
     const taRef = useRef<HTMLTextAreaElement | null>(null)
     const scrollRef = useRef<HTMLDivElement | null>(null)
 
-    /** Auto-grow textarea on change. */
+    /** Стартове завантаження: профіль, ліміти, список розмов. */
+    useEffect(() => {
+        if (!auth.isAuthenticated()) {
+            navigate('/login')
+            return
+        }
+        userApi.me().then(u => { setUser(u); auth.setUser(u) }).catch(() => {
+            auth.clearToken()
+            navigate('/login')
+        })
+        refreshUsage()
+        conversationApi.list().then(setConversations).catch(() => { /* мовчазно */ })
+    }, [])
+
+    function refreshUsage() {
+        userApi.usage().then(setUsage).catch(() => { /* ліміти не критичні для відмалювання */ })
+    }
+
     useEffect(() => {
         const ta = taRef.current
         if (!ta) return
@@ -115,38 +142,104 @@ export default function Chat() {
         ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'
     }, [input])
 
-    /** Auto-scroll to bottom when new messages arrive. */
     useEffect(() => {
         const el = scrollRef.current
         if (!el) return
         el.scrollTop = el.scrollHeight
-    }, [messages])
+    }, [messages, thinking])
+
+    useEffect(() => {
+        if (!thinking) return
+        setPhraseIdx(0)
+        const t = setInterval(() => {
+            setPhraseIdx(i => (i + 1) % THINKING_PHRASES.length)
+        }, 1800)
+        return () => clearInterval(t)
+    }, [thinking])
 
     function onChipClick(chip: ChipDef) {
         if (chip.locked) {
-            // Locked chips redirect to pricing — use SPA nav via a Link would be cleaner,
-            // but we want a programmatic redirect to match original behaviour.
-            window.location.href = '/pricing'
+            navigate('/pricing')
             return
         }
         setActiveChip(chip.id)
     }
 
-    function sendMessage() {
+    /** Новий розклад — чистимо активну розмову. */
+    function startNew() {
+        setConvId(null)
+        setMessages([WELCOME])
+    }
+
+    /** Відкрити збережену розмову — підвантажуємо її повідомлення з бекенду. */
+    async function openConversation(id: string) {
+        if (id === convId) return
+        setConvId(id)
+        try {
+            const conv = await conversationApi.get(id)
+            const msgs: ChatMessage[] = (conv.messages ?? [])
+                .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+                .map(m => ({
+                    role: m.role === 'user' ? 'user' : 'oracle',
+                    who: m.role === 'user' ? 'Ви' : 'Lunaris · Оракул',
+                    text: m.content.split(/\n{2,}/).map(p => p.trim()).filter(Boolean),
+                }))
+            setMessages(msgs.length ? msgs : [WELCOME])
+        } catch {
+            setMessages([WELCOME])
+        }
+    }
+
+    async function sendMessage() {
         const value = input.trim()
-        if (!value) return
-        setMessages(prev => [
-            ...prev,
-            {role: 'user', who: 'Ви', text: [value]},
-            {
+        if (!value || thinking) return
+
+        setMessages(prev => [...prev, {role: 'user', who: 'Ви', text: [value]}])
+        setInput('')
+        setThinking(true)
+
+        try {
+            let id = convId
+            if (!id) {
+                const conv = await conversationApi.create(value.slice(0, 60))
+                id = conv.id
+                setConvId(id)
+                // нова розмова одразу зʼявляється у сайдбарі
+                setConversations(prev => [conv, ...prev])
+            }
+
+            const spreadId = selectedChip.spreadId
+            const res = await conversationApi.sendMessage(id, value, spreadId)
+
+            const paragraphs = res.reply.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
+            const spread = res.cards?.map(c => ({
+                pos: `Позиція ${c.position}`,
+                num: c.isReversed ? 'перевернута' : 'пряма',
+                sym: c.symbol || '✦',
+                name: c.name,
+            }))
+
+            setMessages(prev => [...prev, {
                 role: 'oracle',
                 who: 'Lunaris · Оракул',
-                text: [
-                    'Карти почули ваше питання. *Відповідь формується…* У наступній ітерації тут буде живий діалог з AI-тарологом.',
-                ],
-            },
-        ])
-        setInput('')
+                text: paragraphs.length ? paragraphs : [res.reply],
+                spread: spread && spread.length ? spread : undefined,
+            }])
+            refreshUsage()   // оновлюємо лічильники лімітів
+        } catch (e) {
+            // 429 — денний ліміт вичерпано: показуємо реальний текст від бекенду, а не загальну помилку
+            const isLimit = e instanceof ApiError && e.status === 429
+            setMessages(prev => [...prev, {
+                role: 'oracle',
+                who: 'Lunaris · Оракул',
+                text: isLimit
+                    ? [(e as ApiError).message]
+                    : ['Звʼязок із картами обірвався… Спробуйте ще раз за мить.'],
+            }])
+            if (isLimit) refreshUsage()
+        } finally {
+            setThinking(false)
+        }
     }
 
     function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -156,14 +249,27 @@ export default function Chat() {
         }
     }
 
-    const groups: Array<[string, HistoryItem[]]> = [
-        ['Сьогодні', HISTORY.filter(h => h.group === 'today')],
-        ['Цей тиждень', HISTORY.filter(h => h.group === 'week')],
-        ['Раніше', HISTORY.filter(h => h.group === 'earlier')],
+    // Групуємо реальні розмови за давністю.
+    const bucketed: Record<'today' | 'week' | 'earlier', Conversation[]> = {today: [], week: [], earlier: []}
+    for (const c of conversations) {
+        const g = shortDate(c.updatedAt ?? c.createdAt ?? new Date().toISOString()).group
+        bucketed[g].push(c)
+    }
+    const groups: Array<[string, 'today' | 'week' | 'earlier']> = [
+        ['Сьогодні', 'today'],
+        ['Цей тиждень', 'week'],
+        ['Раніше', 'earlier'],
     ]
 
     const selectedChip = CHIPS.find(c => c.id === activeChip) ?? CHIPS[0]
-    const activeItem = HISTORY.find(h => h.id === activeHistory) ?? HISTORY[0]
+    const activeConv = conversations.find(c => c.id === convId)
+    const headTitle = activeConv?.title ?? 'Новий розклад'
+    const roleLabel = user ? (ROLE_LABEL[user.role] ?? user.role) : '—'
+    const initial = user?.userName?.charAt(0).toUpperCase() || '☾'
+
+    const resetLabel = usage
+        ? new Date(usage.resetsAt).toLocaleTimeString('uk-UA', {hour: '2-digit', minute: '2-digit'}) + ' ↻'
+        : '00:00 ↻'
 
     return (
         <div className="chat-app">
@@ -174,71 +280,86 @@ export default function Chat() {
                     Lunaris
                 </Link>
 
-                <button type="button" className="sb-new">
+                <button type="button" className="sb-new" onClick={startNew}>
                     Новий розклад
                     <span className="plus">+</span>
                 </button>
 
                 <div className="sb-group">
-                    {groups.map(([label, items]) => (
-                        <div key={label}>
-                            <div className="sb-group-label">{label}</div>
-                            {items.map(h => (
-                                <button
-                                    key={h.id}
-                                    type="button"
-                                    className={`sb-item ${h.id === activeHistory ? 'active' : ''}`}
-                                    onClick={() => setActiveHistory(h.id)}
-                                >
-                                    <span className="roman">{h.roman}</span>
-                                    <span className="title">{h.title}</span>
-                                    <span className="date">{h.date}</span>
-                                </button>
-                            ))}
-                        </div>
+                    {groups.map(([label, key]) => (
+                        bucketed[key].length > 0 && (
+                            <div key={label}>
+                                <div className="sb-group-label">{label}</div>
+                                {bucketed[key].map(c => {
+                                    const d = shortDate(c.updatedAt ?? c.createdAt ?? '')
+                                    return (
+                                        <button
+                                            key={c.id}
+                                            type="button"
+                                            className={`sb-item ${c.id === convId ? 'active' : ''}`}
+                                            onClick={() => openConversation(c.id)}
+                                        >
+                                            <span className="roman">☾</span>
+                                            <span className="title">{c.title}</span>
+                                            <span className="date">{d.label}</span>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        )
                     ))}
+                    {conversations.length === 0 && (
+                        <div className="sb-group-label" style={{opacity: 0.6}}>
+                            Ще немає розкладів
+                        </div>
+                    )}
                 </div>
 
                 <div className="sb-user">
                     <div className="sb-quota">
                         <div className="sb-quota-row">
                             <span>Денні ліміти</span>
-                            <span className="val">00:00 ↻</span>
+                            <span className="val">{resetLabel}</span>
                         </div>
                         <div className="sb-quota-bars">
                             <div className="sb-quota-bar">
-                                <span className="lab">III</span>
+                                <span className="lab">✦</span>
                                 <div className="sb-bar">
-                                    <div className="sb-bar-fill" style={{width: '40%'}}/>
+                                    <div
+                                        className={`sb-bar-fill ${usage && usage.readingsLimit < UNLIMITED && usage.readingsUsed >= usage.readingsLimit ? 'full' : ''}`}
+                                        style={{width: usage ? barWidth(usage.readingsUsed, usage.readingsLimit) : '0%'}}
+                                    />
                                 </div>
-                                <span className="val">2/5</span>
+                                <span className="val">
+                                    {usage ? `${usage.readingsUsed}/${usage.readingsLimit >= UNLIMITED ? '∞' : usage.readingsLimit}` : '—'}
+                                </span>
                             </div>
                             <div className="sb-quota-bar">
-                                <span className="lab">V</span>
+                                <span className="lab">☾</span>
                                 <div className="sb-bar">
-                                    <div className="sb-bar-fill" style={{width: '33%'}}/>
+                                    <div
+                                        className={`sb-bar-fill ${usage && usage.chatMessagesLimit < UNLIMITED && usage.chatMessagesUsed >= usage.chatMessagesLimit ? 'full' : ''}`}
+                                        style={{width: usage ? barWidth(usage.chatMessagesUsed, usage.chatMessagesLimit) : '0%'}}
+                                    />
                                 </div>
-                                <span className="val">1/3</span>
-                            </div>
-                            <div className="sb-quota-bar">
-                                <span className="lab">VII</span>
-                                <div className="sb-bar">
-                                    <div className="sb-bar-fill full" style={{width: '100%'}}/>
-                                </div>
-                                <span className="val">1/1</span>
+                                <span className="val">
+                                    {usage ? `${usage.chatMessagesUsed}/${usage.chatMessagesLimit >= UNLIMITED ? '∞' : usage.chatMessagesLimit}` : '—'}
+                                </span>
                             </div>
                         </div>
                     </div>
 
-                    <Link to="/pricing" className="sb-upgrade">✦ Отримати Pro</Link>
+                    {usage?.role !== 'Vip' && usage?.role !== 'Admin' && (
+                        <Link to="/pricing" className="sb-upgrade">✦ Отримати Pro</Link>
+                    )}
 
-                    <div className="sb-profile">
-                        <div className="sb-avatar">R</div>
+                    <Link to="/profile" className="sb-profile">
+                        <div className="sb-avatar">{initial}</div>
                         <div className="sb-name">
-                            raven
-                            <small>Подорожник</small>
+                            {user?.userName ?? '…'}
+                            <small>{roleLabel}</small>
                         </div>
-                    </div>
+                    </Link>
                 </div>
             </aside>
 
@@ -246,29 +367,16 @@ export default function Chat() {
             <section className="chat-panel">
                 <header className="chat-head">
                     <div className="title">
-                        <span className="roman">{activeItem.roman}</span>
+                        <span className="roman">☾</span>
                         <div>
-                            <div className="t">{activeItem.title}</div>
+                            <div className="t">{headTitle}</div>
                             <small>Минуле · Теперішнє · Майбутнє</small>
                         </div>
                     </div>
                     <div className="chat-head-actions">
-                        <button className="head-btn" title="Зберегти">
+                        <button className="head-btn" title="Новий розклад" onClick={startNew}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                                <path d="M5 3h11l3 3v15l-7-4-7 4V3z"/>
-                            </svg>
-                        </button>
-                        <button className="head-btn" title="Поділитись">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                                <circle cx={18} cy={5} r={3}/>
-                                <circle cx={6} cy={12} r={3}/>
-                                <circle cx={18} cy={19} r={3}/>
-                                <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>
-                            </svg>
-                        </button>
-                        <button className="head-btn" title="Видалити">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                                <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>
+                                <path d="M12 5v14M5 12h14"/>
                             </svg>
                         </button>
                     </div>
@@ -278,12 +386,11 @@ export default function Chat() {
                     <div className="chat-wrap">
                         {messages.map((m, i) => (
                             <div key={i} className={`msg ${m.role}`}>
-                                <div className="avatar">{m.role === 'user' ? 'R' : '☾'}</div>
+                                <div className="avatar">{m.role === 'user' ? initial : '☾'}</div>
                                 <div className="body">
                                     <div className="who">{m.who}</div>
                                     <div className="text">
                                         {m.text.map((p, pi) => {
-                                            // Insert spread after first paragraph of an oracle message if present
                                             const showSpread = m.role === 'oracle' && m.spread && pi === 0
                                             return (
                                                 <div key={pi}>
@@ -307,6 +414,21 @@ export default function Chat() {
                                 </div>
                             </div>
                         ))}
+
+                        {thinking && (
+                            <div className="msg oracle thinking">
+                                <div className="avatar">☾</div>
+                                <div className="body">
+                                    <div className="who">Lunaris · Оракул</div>
+                                    <div className="text">
+                                        <p className="thinking-text">
+                                            {THINKING_PHRASES[phraseIdx]}
+                                            <span className="thinking-dots"><i/><i/><i/></span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -336,7 +458,7 @@ export default function Chat() {
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={onKeyDown}
               />
-                            <button className="send-btn" title="Спитати" onClick={sendMessage}>
+                            <button className="send-btn" title="Спитати" onClick={sendMessage} disabled={thinking}>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                      strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M12 19V5 M5 12l7-7 7 7"/>
@@ -346,7 +468,8 @@ export default function Chat() {
 
                         <div className="composer-foot">
               <span>
-                Обрано: <span className="sel">{selectedChip.label}</span> · Залишилось сьогодні: 3/5
+                Обрано: <span className="sel">{selectedChip.label}</span>
+                  {usage && ` · Розкладів сьогодні: ${remainingText(usage.readingsUsed, usage.readingsLimit)}`}
               </span>
                             <span>Lunaris v1.0</span>
                         </div>

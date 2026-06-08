@@ -10,6 +10,11 @@ import Library from './pages/Library'
 import Admin from './pages/Admin'
 import Faq from './pages/Faq'
 import Profile from './pages/Profile'
+import Forgot from './pages/Forgot'
+import Reset from './pages/Reset'
+import NotFound from './pages/NotFound'
+import About from './pages/About'
+import CardDetail from './pages/CardDetail'
 
 /**
  * Admin page renders its own full-screen dashboard layout and
@@ -20,7 +25,11 @@ function Chrome() {
   const { pathname } = useLocation()
   const isAdmin = pathname.startsWith('/admin')
   const isChat = pathname.startsWith('/chat')
-  if (isAdmin || isChat) return null
+  // 404 та інші повноекранні маршрути малюють власний фон без плаваючих кутів.
+  const knownPaths = ['/', '/login', '/register', '/guest', '/chat', '/pricing',
+    '/library', '/admin', '/faq', '/profile', '/forgot', '/reset', '/about']
+  const isUnknown = !knownPaths.includes(pathname) && !pathname.startsWith('/card')
+  if (isAdmin || isChat || isUnknown) return null
   return <Corners />
 }
 
@@ -39,7 +48,11 @@ export default function App() {
         <Route path="/admin" element={<Admin />} />
         <Route path="/faq" element={<Faq />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="*" element={<Home />} />
+        <Route path="/forgot" element={<Forgot />} />
+        <Route path="/reset" element={<Reset />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/card/:rom" element={<CardDetail />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   )

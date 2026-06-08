@@ -1,9 +1,11 @@
 using TaroSideAI.Application.DTOs;
 using TaroSideAI.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
+using TaroSideAI.Application.Interfaces;
+
 namespace TaroSideAI.Application.Services;
 
-public class AuthService
+public class AuthService : IAuthService
 {
     private readonly UserManager<AppUser> _userManager;
     private readonly TokenService _tokenService;
@@ -37,5 +39,15 @@ public class AuthService
             Token = userJwt
         };
     }
-    
+
+    public async Task ChangePasswordAsync(Guid userId, ChangePasswordDto dto)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString())
+                   ?? throw new Exception("Користувача не знайдено");
+
+        var result = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
+        if (!result.Succeeded)
+            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+    }
+
 }

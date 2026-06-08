@@ -16,7 +16,7 @@ public class SpreadRepository : ISpreadRepository
     
     public async Task<List<Spread>> GetAllSpreadsAsync()
     {
-        return await _db.Spreads.ToListAsync();
+        return await _db.Spreads.AsNoTracking().ToListAsync();
     }
     
     public async Task<Spread?> GetSpreadByIdAsync(int id)

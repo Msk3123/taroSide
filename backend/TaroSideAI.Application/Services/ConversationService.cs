@@ -3,14 +3,16 @@ using TaroSideAI.Application.Interfaces;
 using TaroSideAI.Domain.Entities;
 using Microsoft.Extensions.AI;
 namespace TaroSideAI.Application.Services;
-public class ConversationService
+public class ConversationService : IConversationService
 {
     private readonly IConversationRepository _repo;
     private readonly IChatAiService _aiService;
-    public ConversationService(IConversationRepository repo, IChatAiService aiService)
+    private readonly IUserService _userService;
+    public ConversationService(IConversationRepository repo, IChatAiService aiService, IUserService userService)
     {
         _repo = repo;
         _aiService = aiService;
+        _userService = userService;
     }
     public async Task<Conversation> CreateConversationAsync(Guid userId, string title)
     {
@@ -32,10 +34,15 @@ public class ConversationService
     {
         return await _repo.GetByIdAsync(id);
     }
-    public async Task<string> ProcessUserMessageAsync(Guid conversationId, string message, int spreadId, CancellationToken ct)
+    public async Task<ChatResultDto> ProcessUserMessageAsync(Guid conversationId, string message, int spreadId, CancellationToken ct)
     {
         var conv = await _repo.GetByIdAsync(conversationId);
         if (conv == null) throw new Exception("Чат не знайдено");
+
+        // Денний ліміт повідомлень: кине LimitExceededException, якщо вичерпано.
+        // canDraw — чи дозволено новий розклад (ліміт розкладів ще не досягнуто).
+        var canDraw = await _userService.CheckMessageAllowanceAsync(conv.UserId);
+
         // Зберігаємо повідомлення користувача
         var userMsg = new Message
         {
@@ -52,18 +59,22 @@ public class ConversationService
             .TakeLast(10)
             .Select(m => new ChatMessage(m.Role == "user" ? ChatRole.User : ChatRole.Assistant, m.Content))
             .ToList();
-        // LLM генерує відповідь
-        var aiReply = await _aiService.ChatAsync(message, spreadId, history, ct);
-        // Зберігаємо відповідь LLM
+        // LLM генерує відповідь (текст + карти)
+        var result = await _aiService.ChatAsync(message, spreadId, history, canDraw, ct);
+        // У БД зберігаємо лише текст відповіді (карти поки не персистимо — це окрема задача)
         var assistantMsg = new Message
         {
             Id = Guid.NewGuid(),
             ConversationId = conversationId,
             Role = "assistant",
-            Content = aiReply,
+            Content = result.Reply,
             CreatedAt = DateTime.UtcNow
         };
         await _repo.AddMessageAsync(assistantMsg);
-        return aiReply;
+
+        // Фіксуємо використання: +1 повідомлення, +1 розклад якщо випали карти.
+        await _userService.RegisterMessageAsync(conv.UserId, result.Cards.Count > 0);
+
+        return result;
     }
 }

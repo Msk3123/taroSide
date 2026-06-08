@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Microsoft.Extensions.AI;
+using TaroSideAI.Application.DTOs;
 using TaroSideAI.Application.Interfaces;
 using TaroSideAI.Domain.Entities;
 
@@ -8,8 +9,8 @@ namespace TaroSideAI.Application.Services;
 public class ChatAiService : IChatAiService
 {
     private readonly IChatClient _chatClient;
-    private readonly CardService _cardService;
-    private readonly SpreadService _spreadService;
+    private readonly ICardService _cardService;
+    private readonly ISpreadService _spreadService;
 
     private const string SystemPrompt =
         "# РОЛЬ ТА ІДЕНТИЧНІСТЬ\nТи — Lunaris, езотеричний провідник, стародавній мудрець та майстер Таро. " +
@@ -43,71 +44,110 @@ public class ChatAiService : IChatAiService
         "Фаталізм: Ти не передбачаєш дату смерті, трагічні невідворотні події чи глобальні катастрофи. " +
         "Майбутнє завжди багатоваріантне.";
 
-    public ChatAiService(IChatClient chatClient, CardService cardService, SpreadService spreadService)
+    public ChatAiService(IChatClient chatClient, ICardService cardService, ISpreadService spreadService)
     {
         _spreadService = spreadService;
         _chatClient = chatClient;
         _cardService = cardService;
     }
 
-    // ← ДОДАНО async
-    public async Task<string> ChatAsync(string userMessage, int currentSpreadId, List<ChatMessage> history, CancellationToken ct)
+    public async Task<ChatResultDto> ChatAsync(string userMessage, int currentSpreadId, List<ChatMessage> history, bool canDraw, CancellationToken ct)
     {
+        // Сюди інструмент складатиме реально витягнуті карти. Змінна живе лише
+        // в межах ОДНОГО запиту (замикання), тож спільного стану між
+        // користувачами немає — на відміну від поля класу.
+        var drawnCards = new List<DrawnCardDto>();
+
+        // Локальна функція-інструмент. Робить дві речі: (1) запамʼятовує карти
+        // у drawnCards для фронту, (2) повертає LLM текстовий опис для інтерпретації.
+        async Task<string> DrawTarotCardsAsync(
+            [Description("Ідентифікатор розкладу, який обрав користувач")] int spreadId)
+        {
+            if (spreadId <= 0)
+            {
+                return "СИСТЕМНА ПОМИЛКА: Невірний ID розкладу. Попроси користувача перевірити налаштування розкладу.";
+            }
+
+            var spread = await _spreadService.GetSpreadByIdAsync(spreadId);
+            if (spread == null)
+            {
+                return $"СИСТЕМНА ПОМИЛКА: Розклад з ID {spreadId} не знайдено в базі даних.";
+            }
+
+            var count = spread.CardCount;
+            var descriptionSpread = $"Розклад: \"{spread.Name}\" ({count} карт). Опис: {spread.Description}";
+
+            var drawn = await _cardService.DrawRandomCardsAsync(count);
+
+            // Запамʼятовуємо карти у форматі, який чекає фронт (міні-картки).
+            foreach (var rc in drawn)
+            {
+                drawnCards.Add(new DrawnCardDto
+                {
+                    Position = rc.Position,
+                    Name = rc.Card.NameUkr,
+                    Symbol = rc.Card.Symbol,
+                    IsReversed = rc.IsReversed
+                });
+            }
+
+            var lines = drawn.Select(rc =>
+            {
+                var orient = rc.IsReversed ? "перевернута" : "пряма";
+                var meaning = rc.IsReversed ? rc.Card.ReversedMeaning : rc.Card.UprightMeaning;
+                return $"- Позиція {rc.Position}: {rc.Card.NameUkr} ({orient}). Класичне значення: {meaning}";
+            });
+
+            // LLM отримує тільки факти (карти + опис розкладу), без готового тексту.
+            return $"{descriptionSpread}\n\nВитягнуті карти:\n{string.Join("\n", lines)}\n\nТвоя задача: Інтерпретуй ці карти як єдину історію у контексті проблеми користувача.";
+        }
+
         var drawCardsTool = AIFunctionFactory.Create(
             DrawTarotCardsAsync,
             name: "DrawTarotCards",
             description: "Витягує карти Таро для розкладу. ОБОВ'ЯЗКОВО викликай цю функцію, коли користувач просить ворожіння або розклад.");
 
-        var options = new ChatOptions
-        {
-            Tools = [drawCardsTool],
-            ToolMode = ChatToolMode.Auto
-        };
+        // Якщо денний ліміт розкладів вичерпано — взагалі не підключаємо інструмент,
+        // тож модель фізично не може витягнути карти (ліміт неможливо обійти промптом).
+        var options = canDraw
+            ? new ChatOptions { Tools = [drawCardsTool], ToolMode = ChatToolMode.Auto }
+            : new ChatOptions();
+
+        var limitNote = canDraw
+            ? string.Empty
+            : "\n\n# ЛІМІТ РОЗКЛАДІВ ВИЧЕРПАНО\n" +
+              "Користувач вичерпав денний ліміт розкладів свого тарифу. НЕ роби новий розклад. " +
+              "Якщо він просить ворожіння — м'яко поясни, що ліміт на сьогодні вичерпано, і запропонуй " +
+              "повернутися завтра або оновити тариф. Вести діалог про вже зроблені розклади можна вільно.";
 
         var messages = new List<ChatMessage>
         {
-            new(ChatRole.System, SystemPrompt + $"\n\nПоточний контекст системи: Користувач обрав розклад з ID={currentSpreadId}. Якщо потрібен розклад, викликай DrawTarotCards з spreadId={currentSpreadId}."),
+            new(ChatRole.System, SystemPrompt + limitNote +
+                $"\n\n# ПОТОЧНИЙ КОНТЕКСТ\nОбраний користувачем розклад має ID={currentSpreadId}." +
+                "\n\n# КОЛИ ВИКЛИКАТИ DrawTarotCards (СУВОРО)\n" +
+                "Виклик DrawTarotCards ДОЗВОЛЕНО лише тоді, коли користувач у своєму ОСТАННЬОМУ повідомленні ЯВНО просить ворожіння або розклад.\n" +
+                "• НЕ викликай інструмент (просто відповідай текстом) на: привітання, подяки, світську бесіду, емоції, запитання про вже зроблений розклад. Приклади: «привіт», «як справи», «дякую», «розкажи більше про другу карту».\n" +
+                "• Викликай інструмент лише на явні прохання: «зроби розклад», «поворожи», «витягни карти», «що на мене чекає…», «подивись моє майбутнє».\n" +
+                $"Якщо викликаєш — використовуй spreadId={currentSpreadId}. Якщо сумніваєшся — НЕ викликай, а уточни запит звичайним текстом.\n\n" +
+                "# ФОРМАТУВАННЯ ВІДПОВІДІ\n" +
+                "Виділяй назви карт та ключові фрази зірочками: *ось так* (це робить їх курсивом у застосунку). " +
+                "Пиши короткими абзацами по 2–3 речення й розділяй абзаци порожнім рядком."),
         };
-        
-        if (history != null && history.Any()) 
+
+        if (history != null && history.Any())
         {
             messages.AddRange(history);
         }
-        
+
         messages.Add(new(ChatRole.User, userMessage));
 
         var response = await _chatClient.GetResponseAsync(messages, options, ct);
-        return response.Text ?? string.Empty;
-    }
 
-    [Description("Витягує необхідну кількість карт з колоди Таро для заданого розкладу.")]
-    private async Task<string> DrawTarotCardsAsync(
-        [Description("Ідентифікатор розкладу, який обрав користувач")] int spreadId)
-    {
-        if (spreadId <= 0)
+        // Текст + карти, що встиг зібрати інструмент під час function calling.
+        return new ChatResultDto
         {
-            return "СИСТЕМНА ПОМИЛКА: Невірний ID розкладу. Попроси користувача перевірити налаштування розкладу.";
-        }
-
-        var spread = await _spreadService.GetSpreadByIdAsync(spreadId);
-        if (spread == null)
-        {
-            return $"СИСТЕМНА ПОМИЛКА: Розклад з ID {spreadId} не знайдено в базі даних.";
-        }
-        
-        var count = spread.CardCount;
-        var descriptionSpread = $"Розклад: \"{spread.Name}\" ({count} карт). Опис: {spread.Description}";
-
-        var drawn = await _cardService.DrawRandomCardsAsync(count);
-
-        var lines = drawn.Select(rc =>
-        {
-            var orient = rc.IsReversed ? "перевернута" : "пряма";
-            var meaning = rc.IsReversed ? rc.Card.ReversedMeaning : rc.Card.UprightMeaning;
-            return $"- Позиція {rc.Position}: {rc.Card.NameUkr} ({orient}). Класичне значення: {meaning}";
-        });
-
-        // Повертаємо LLM тільки фактичні дані (карти та опис розкладу)
-        return $"{descriptionSpread}\n\nВитягнуті карти:\n{string.Join("\n", lines)}\n\nТвоя задача: Інтерпретуй ці карти як єдину історію у контексті проблеми користувача.";
+            Reply = response.Text ?? string.Empty,
+            Cards = drawnCards
+        };
     }
 }

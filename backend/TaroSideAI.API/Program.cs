@@ -6,12 +6,11 @@ using Microsoft.Extensions.AI;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using OllamaSharp;
-using TaroSideAI.Application.Interfaces;
+using TaroSideAI.Application.DI;
 using TaroSideAI.Application.Options;
-using TaroSideAI.Application.Services;
 using TaroSideAI.Domain.Entities;
 using TaroSideAI.Infrastructure.Persistence;
-using TaroSideAI.Infrastructure.Repositories;
+using TaroSideAI.Infrastructure.DI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -92,20 +91,9 @@ builder.Services.AddSingleton<IChatClient>(sp =>
         .Build();
 });
 
-builder.Services.AddScoped<ICardRepository, CardRepository>();
-builder.Services.AddScoped<CardService>();
-
-builder.Services.AddScoped<ISpreadRepository, SpreadRepository>();
-builder.Services.AddScoped<SpreadService>();
-
-builder.Services.AddScoped<IChatAiService, ChatAiService>();
-
-builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
-builder.Services.AddScoped<ConversationService>();
-
-builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<TokenService>();
-builder.Services.AddScoped<AuthService>();
+builder.Services
+    .AddApplication()
+    .AddInfrastructure(builder.Configuration);
 
 
 // ──────────────────────────────────────────────

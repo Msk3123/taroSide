@@ -4,7 +4,7 @@ using TaroSideAI.Domain.Entities;
 
 namespace TaroSideAI.Application.Services;
 
-public class CardService
+public class CardService : ICardService
 {
     private readonly ICardRepository _cardRepository;
 
@@ -43,7 +43,7 @@ public class CardService
 
     public async Task<List<TarotCard>> GetAllCardsAsync()
     {
-        return await _cardRepository.GetAllAsync();
+        return await _cardRepository.GetAllCardAsync();
     }
     public async Task<List<ReadingCard>> DrawRandomCardsAsync(int count)
     {
@@ -51,7 +51,7 @@ public class CardService
             throw new ArgumentException("Кількість карт має бути більше 0", nameof(count));
 
         // 1. Беремо всю колоду з БД
-        var allCards = await _cardRepository.GetAllAsync();
+        var allCards = await _cardRepository.GetAllCardAsync();
 
         if (count > allCards.Count)
             throw new InvalidOperationException(

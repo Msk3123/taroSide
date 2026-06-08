@@ -29,9 +29,9 @@ public class CardRepository : ICardRepository
         return await _db.TarotCards.FindAsync(id);
     }
 
-    public async Task<List<TarotCard>> GetAllAsync()
+    public async Task<List<TarotCard>> GetAllCardAsync()
     {
-        return await _db.TarotCards.ToListAsync();
+        return await _db.TarotCards.AsNoTracking().ToListAsync();
     }
     
     public async Task<List<TarotCard>> GetRandomCardAsync(int countCard)
