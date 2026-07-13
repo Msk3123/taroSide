@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using TaroSideAI.Application.DTOs;
-using TaroSideAI.Application.Services;
+using TaroSideAI.Application.Interfaces;
 
 namespace TaroSideAI.API.Controllers;
 
@@ -8,9 +8,11 @@ namespace TaroSideAI.API.Controllers;
 [Route("api/[controller]")] // → /api/cards
 public class CardsController : ControllerBase
 {
-    private readonly CardService _cardService;
+    // Просимо ІНТЕРФЕЙС, бо в DI зареєстровано ICardService → CardService.
+    // Конкретний клас контейнер віддати не може — його ніхто не реєстрував.
+    private readonly ICardService _cardService;
 
-    public CardsController(CardService cardService)
+    public CardsController(ICardService cardService)
     {
         _cardService = cardService;
     }

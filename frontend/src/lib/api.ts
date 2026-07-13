@@ -145,6 +145,8 @@ export interface ConversationMessage {
   role: string
   content: string
   createdAt: string
+  /** JSON-рядок із картами (масив DrawnCard), якщо в повідомленні був розклад. */
+  cardsJson?: string | null
 }
 
 /** Розмова, як її віддає бекенд. messages приходить лише в GET by id. */
@@ -193,5 +195,47 @@ export const conversationApi = {
       method: 'POST',
       body: JSON.stringify({ Message: message, SpreadId: spreadId }),
     }),
+}
+
+/* -------- адмінка (усі запити вимагають роль Admin у JWT) -------- */
+
+/** Користувач очима адміна: роль + сьогоднішнє використання лімітів. */
+export interface AdminUser {
+  id: string
+  userName: string
+  email: string
+  role: 'Guest' | 'Free' | 'Premium' | 'Vip' | 'Admin'
+  createdAt: string
+  dailyChatMessagesUsed: number
+  dailyQuestionsUsed: number
+}
+
+/** Глобальні лічильники для дашборду адмінки. */
+export interface AdminStats {
+  totalUsers: number
+  totalConversations: number
+  totalMessages: number
+  totalCards: number
+}
+
+export const adminApi = {
+  /** GET /api/admin/users — усі користувачі (новіші першими). */
+  listUsers: () => api<AdminUser[]>('/api/admin/users'),
+
+  /** GET /api/admin/stats — лічильники по всій базі. */
+  stats: () => api<AdminStats>('/api/admin/stats'),
+
+  /**
+   * PUT /api/admin/users/{id}/role — змінює роль. Роль шлемо РЯДКОМ ("Premium"),
+   * бекенд парсить її через Enum.TryParse. Повертає оновленого користувача.
+   */
+  setRole: (id: string, role: AdminUser['role']) =>
+    api<AdminUser>(`/api/admin/users/${id}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ Role: role }),
+    }),
+
+  /** DELETE /api/admin/users/{id} — видаляє акаунт (204 No Content). */
+  deleteUser: (id: string) => api<void>(`/api/admin/users/${id}`, { method: 'DELETE' }),
 }
 

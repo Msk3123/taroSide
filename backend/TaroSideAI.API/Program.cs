@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using OllamaSharp;
+using OpenAI;
 using TaroSideAI.Application.DI;
 using TaroSideAI.Application.Options;
 using TaroSideAI.Domain.Entities;
@@ -80,16 +80,24 @@ builder.Services.AddCors(options =>
 // ──────────────────────────────────────────────
 // Scoped = один екземпляр на HTTP запит (стандарт для репозиторіїв і сервісів)
 
-builder.Services.Configure<AiSettings>(builder.Configuration.GetSection("Ollama"));
+builder.Services.Configure<AiSettings>(builder.Configuration.GetSection("OpenAI"));
 
 builder.Services.AddSingleton<IChatClient>(sp =>
 {
-    var cfg = builder.Configuration.GetSection("Ollama").Get<AiSettings>()!;
-    IChatClient ollama = new OllamaApiClient(new Uri(cfg.OpenAiApiUrl), cfg.OpenAiModel);
-    return new ChatClientBuilder(ollama)
+    var cfg = builder.Configuration.GetSection("OpenAI").Get<AiSettings>() ?? new AiSettings();
+    if (string.IsNullOrWhiteSpace(cfg.OpenAiApiKey))
+        throw new InvalidOperationException(
+            "OpenAI не налаштовано: відсутній API-ключ. Вкажіть OpenAI:OpenAiApiKey у " +
+            "appsettings.Development.json або змінну середовища OpenAI__OpenAiApiKey.");
+
+    IChatClient openai = new OpenAIClient(cfg.OpenAiApiKey)
+        .GetChatClient(cfg.OpenAiModel)
+        .AsIChatClient();
+    return new ChatClientBuilder(openai)
         .UseFunctionInvocation()
         .Build();
 });
+
 
 builder.Services
     .AddApplication()

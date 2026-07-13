@@ -15,9 +15,9 @@ public interface IUserService
 
     /// <summary>
     /// Перевіряє денний ліміт повідомлень (кидає LimitExceededException, якщо вичерпано)
-    /// та повертає, чи дозволено зараз новий розклад (ліміт розкладів ще не вичерпано).
+    /// та повертає дозвіл на розклад: чи можна тягнути карти + макс. кількість карт за тарифом.
     /// </summary>
-    public Task<bool> CheckMessageAllowanceAsync(Guid userId);
+    public Task<MessageAllowance> CheckMessageAllowanceAsync(Guid userId);
 
     /// <summary>Фіксує використане повідомлення (+ розклад, якщо випали карти).</summary>
     public Task RegisterMessageAsync(Guid userId, bool readingHappened);

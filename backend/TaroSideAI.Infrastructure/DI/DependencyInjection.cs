@@ -14,6 +14,7 @@ public static class InfrastructureDі
         services.AddScoped<ICardRepository, CardRepository>();
         services.AddScoped<ISpreadRepository, SpreadRepository>();
         services.AddScoped<IConversationRepository, ConversationRepository>();
+        services.AddScoped<IAdminRepository, AdminRepository>();
 
         return services;
     }

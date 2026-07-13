@@ -10,6 +10,7 @@ import {
     type Conversation,
     type CurrentUser,
     type UserUsage,
+    type DrawnCard,
 } from '../lib/api'
 
 
@@ -34,15 +35,15 @@ interface ChipDef {
     rom: string
     label: string
     spreadId: number       // id розкладу в БД (НЕ кількість карт!)
-    locked?: boolean
+    minCards?: number      // мін. ліміт карт за тарифом, щоб розклад був доступний
 }
 
 const CHIPS: ChipDef[] = [
     {id: 'c3', rom: 'III', label: 'Три карти', spreadId: 1},
     {id: 'c5', rom: 'V', label: "П'ять карт", spreadId: 2},
     {id: 'c7', rom: 'VII', label: 'Сім карт', spreadId: 3},
-    {id: 'c12', rom: 'XII', label: 'Колесо року', spreadId: 4, locked: true},
-    {id: 'cinf', rom: '∞', label: 'Вільний', spreadId: 5, locked: true},
+    {id: 'c12', rom: 'XII', label: 'Колесо року', spreadId: 4, minCards: 12},
+    {id: 'cinf', rom: '∞', label: 'Вільний', spreadId: 5, minCards: 12},
 ]
 
 /** Людська назва ролі для сайдбару/профілю. */
@@ -78,6 +79,16 @@ function renderText(text: string) {
     return parts.map((part, i) =>
         i % 2 === 1 ? <em key={i}>{part}</em> : <span key={i}>{part}</span>
     )
+}
+
+/** Карти з бекенду → міні-картки для відмалювання в чаті (єдине місце мапінгу). */
+function cardsToSpread(cards: DrawnCard[]): MiniCard[] {
+    return cards.map(c => ({
+        pos: `Позиція ${c.position}`,
+        num: c.isReversed ? 'перевернута' : 'пряма',
+        sym: c.symbol || '✦',
+        name: c.name,
+    }))
 }
 
 /** Коротка дата для пункту історії: сьогодні → час, цей тиждень → день, інакше → дд.мм. */
@@ -157,8 +168,15 @@ export default function Chat() {
         return () => clearInterval(t)
     }, [thinking])
 
+    /** Чи замкнений розклад для поточного тарифу (за лімітом карт ролі). */
+    function isChipLocked(chip: ChipDef): boolean {
+        if (!chip.minCards) return false   // базові розклади доступні всім
+        if (!usage) return true            // ліміти ще не завантажились — поки замкнено
+        return usage.maxCards < chip.minCards
+    }
+
     function onChipClick(chip: ChipDef) {
-        if (chip.locked) {
+        if (isChipLocked(chip)) {
             navigate('/pricing')
             return
         }
@@ -179,11 +197,22 @@ export default function Chat() {
             const conv = await conversationApi.get(id)
             const msgs: ChatMessage[] = (conv.messages ?? [])
                 .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-                .map(m => ({
-                    role: m.role === 'user' ? 'user' : 'oracle',
-                    who: m.role === 'user' ? 'Ви' : 'Lunaris · Оракул',
-                    text: m.content.split(/\n{2,}/).map(p => p.trim()).filter(Boolean),
-                }))
+                .map(m => {
+                    const isUser = m.role === 'user'
+                    const msg: ChatMessage = {
+                        role: isUser ? 'user' : 'oracle',
+                        who: isUser ? 'Ви' : 'Lunaris · Оракул',
+                        text: m.content.split(/\n{2,}/).map(p => p.trim()).filter(Boolean),
+                    }
+                    // Відновлюємо карти зі збереженого JSON, щоб розклад не зникав.
+                    if (!isUser && m.cardsJson) {
+                        try {
+                            const cards = JSON.parse(m.cardsJson) as DrawnCard[]
+                            if (cards.length) msg.spread = cardsToSpread(cards)
+                        } catch { /* зіпсований JSON — просто без карт */ }
+                    }
+                    return msg
+                })
             setMessages(msgs.length ? msgs : [WELCOME])
         } catch {
             setMessages([WELCOME])
@@ -212,12 +241,7 @@ export default function Chat() {
             const res = await conversationApi.sendMessage(id, value, spreadId)
 
             const paragraphs = res.reply.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
-            const spread = res.cards?.map(c => ({
-                pos: `Позиція ${c.position}`,
-                num: c.isReversed ? 'перевернута' : 'пряма',
-                sym: c.symbol || '✦',
-                name: c.name,
-            }))
+            const spread = res.cards ? cardsToSpread(res.cards) : undefined
 
             setMessages(prev => [...prev, {
                 role: 'oracle',
@@ -439,7 +463,7 @@ export default function Chat() {
                                 const cls = [
                                     'chip',
                                     c.id === activeChip ? 'active' : '',
-                                    c.locked ? 'locked' : '',
+                                    isChipLocked(c) ? 'locked' : '',
                                 ].filter(Boolean).join(' ')
                                 return (
                                     <button key={c.id} type="button" className={cls} onClick={() => onChipClick(c)}>

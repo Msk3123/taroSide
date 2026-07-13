@@ -70,7 +70,7 @@ public class UserService : IUserService
         return BuildUsage(user);
     }
 
-    public async Task<bool> CheckMessageAllowanceAsync(Guid userId)
+    public async Task<MessageAllowance> CheckMessageAllowanceAsync(Guid userId)
     {
         var user = await _userManager.FindByIdAsync(userId.ToString())
                    ?? throw new Exception("Користувача не знайдено");
@@ -88,8 +88,9 @@ public class UserService : IUserService
 
         if (changed) await _userManager.UpdateAsync(user);
 
-        // Чи дозволено новий розклад (карти) у цьому повідомленні.
-        return user.DailyQuestionsUsed < policy.MaxReadingsPerDay;
+        // Чи дозволено новий розклад (карти) у цьому повідомленні + макс. карт за тарифом.
+        var canDraw = user.DailyQuestionsUsed < policy.MaxReadingsPerDay;
+        return new MessageAllowance(canDraw, policy.MaxCards);
     }
 
     public async Task RegisterMessageAsync(Guid userId, bool readingHappened)

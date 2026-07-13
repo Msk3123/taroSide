@@ -1,4 +1,5 @@
-﻿using TaroSideAI.Application.DTOs;
+﻿using System.Text.Json;
+using TaroSideAI.Application.DTOs;
 using TaroSideAI.Application.Interfaces;
 using TaroSideAI.Domain.Entities;
 using Microsoft.Extensions.AI;
@@ -8,6 +9,10 @@ public class ConversationService : IConversationService
     private readonly IConversationRepository _repo;
     private readonly IChatAiService _aiService;
     private readonly IUserService _userService;
+
+    // camelCase, щоб збережений JSON карт мав той самий вигляд, що й «жива» відповідь.
+    private static readonly JsonSerializerOptions JsonCamelCase =
+        new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     public ConversationService(IConversationRepository repo, IChatAiService aiService, IUserService userService)
     {
         _repo = repo;
@@ -40,8 +45,8 @@ public class ConversationService : IConversationService
         if (conv == null) throw new Exception("Чат не знайдено");
 
         // Денний ліміт повідомлень: кине LimitExceededException, якщо вичерпано.
-        // canDraw — чи дозволено новий розклад (ліміт розкладів ще не досягнуто).
-        var canDraw = await _userService.CheckMessageAllowanceAsync(conv.UserId);
+        // allowance.CanDraw — чи дозволено новий розклад; allowance.MaxCards — ліміт карт за тарифом.
+        var allowance = await _userService.CheckMessageAllowanceAsync(conv.UserId);
 
         // Зберігаємо повідомлення користувача
         var userMsg = new Message
@@ -60,15 +65,23 @@ public class ConversationService : IConversationService
             .Select(m => new ChatMessage(m.Role == "user" ? ChatRole.User : ChatRole.Assistant, m.Content))
             .ToList();
         // LLM генерує відповідь (текст + карти)
-        var result = await _aiService.ChatAsync(message, spreadId, history, canDraw, ct);
-        // У БД зберігаємо лише текст відповіді (карти поки не персистимо — це окрема задача)
+        var result = await _aiService.ChatAsync(message, spreadId, history, allowance.CanDraw, allowance.MaxCards, ct);
+        // Карти зберігаємо як JSON у самому повідомленні, щоб при повторному
+        // відкритті розмови вони не зникали. camelCase — щоб формат збігався з
+        // «живою» відповіддю (ChatReply.cards), яку фронт уже вміє малювати.
+        var cardsJson = result.Cards.Count > 0
+            ? JsonSerializer.Serialize(result.Cards, JsonCamelCase)
+            : null;
+
+        // У БД зберігаємо текст відповіді + карти (якщо випали).
         var assistantMsg = new Message
         {
             Id = Guid.NewGuid(),
             ConversationId = conversationId,
             Role = "assistant",
             Content = result.Reply,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            CardsJson = cardsJson
         };
         await _repo.AddMessageAsync(assistantMsg);
 

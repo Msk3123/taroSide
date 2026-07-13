@@ -9,5 +9,6 @@ public interface IChatAiService
     // щоб витягнуті карти доходили до фронту й малювалися в розкладі.
     // canDraw — чи дозволено робити новий розклад (денний ліміт розкладів ще не вичерпано).
     // Якщо false — інструмент DrawTarotCards не підключається й оракул не може витягувати карти.
-    Task<ChatResultDto> ChatAsync(string userMessage, int currentSpreadId, List<ChatMessage> history, bool canDraw, CancellationToken ct);
+    // maxCards — макс. кількість карт за тарифом; розклад більший за цей ліміт сервер не дозволить.
+    Task<ChatResultDto> ChatAsync(string userMessage, int currentSpreadId, List<ChatMessage> history, bool canDraw, int maxCards, CancellationToken ct);
 }

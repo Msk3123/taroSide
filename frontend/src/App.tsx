@@ -15,6 +15,10 @@ import Reset from './pages/Reset'
 import NotFound from './pages/NotFound'
 import About from './pages/About'
 import CardDetail from './pages/CardDetail'
+import Trainer from './pages/Trainer'
+import TrainerSession from './pages/TrainerSession'
+import Journal from './pages/Journal'
+import Reading from './pages/Reading'
 
 /**
  * Admin page renders its own full-screen dashboard layout and
@@ -27,7 +31,8 @@ function Chrome() {
   const isChat = pathname.startsWith('/chat')
   // 404 та інші повноекранні маршрути малюють власний фон без плаваючих кутів.
   const knownPaths = ['/', '/login', '/register', '/guest', '/chat', '/pricing',
-    '/library', '/admin', '/faq', '/profile', '/forgot', '/reset', '/about']
+    '/library', '/admin', '/faq', '/profile', '/forgot', '/reset', '/about', '/trainer',
+    '/trainer-session', '/journal', '/reading']
   const isUnknown = !knownPaths.includes(pathname) && !pathname.startsWith('/card')
   if (isAdmin || isChat || isUnknown) return null
   return <Corners />
@@ -51,6 +56,10 @@ export default function App() {
         <Route path="/forgot" element={<Forgot />} />
         <Route path="/reset" element={<Reset />} />
         <Route path="/about" element={<About />} />
+        <Route path="/trainer" element={<Trainer />} />
+        <Route path="/trainer-session" element={<TrainerSession />} />
+        <Route path="/journal" element={<Journal />} />
+        <Route path="/reading" element={<Reading />} />
         <Route path="/card/:rom" element={<CardDetail />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

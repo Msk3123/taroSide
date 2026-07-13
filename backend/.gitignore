@@ -3,3 +3,8 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+
+# Local settings with secrets (API keys, connection strings) — never commit
+appsettings.Development.json
+appsettings.*.Local.json
+.env

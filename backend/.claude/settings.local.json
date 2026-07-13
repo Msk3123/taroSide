@@ -19,7 +19,14 @@
       "Bash(git -C /d/Programiring/TaroSideIA diff --cached --stat)",
       "Bash(Get-ChildItem -Path \"D:\\\\Programiring\\\\TaroSideIA\" -Directory -Depth 1)",
       "mcp__ide__getDiagnostics",
-      "Bash(echo \"EXIT CODE: $?\")"
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(git rm *)",
+      "Bash(git check-ignore *)",
+      "mcp__cwm-roslyn-navigator__get_project_graph",
+      "mcp__cwm-roslyn-navigator__find_symbol",
+      "PowerShell(Get-NetTCPConnection *)",
+      "PowerShell(dotnet run *)",
+      "PowerShell(cd ..\\\\frontend; node node_modules\\\\typescript\\\\bin\\\\tsc --noEmit -p tsconfig.json; if \\($LASTEXITCODE -eq 0\\) { 'TSC OK' } else { \"TSC FAILED: $LASTEXITCODE\" })"
     ]
   }
 }

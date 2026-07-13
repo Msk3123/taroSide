@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import BrandMark from '../components/BrandMark'
-import { api } from '../lib/api'
+import { api, adminApi, auth, type AdminUser, type AdminStats } from '../lib/api'
 
 type ArcanaKey = 'major' | 'wands' | 'cups' | 'swords' | 'pentacles'
 
@@ -82,7 +82,10 @@ const emptyForm: UiCard = {
   en: '', ua: '', arcana: 'major', rank: '', keywords: '', up: '', rev: '',
 }
 
+const ALL_ROLES: AdminUser['role'][] = ['Guest', 'Free', 'Premium', 'Vip', 'Admin']
+
 export default function Admin() {
+  const [tab, setTab] = useState<'cards' | 'users'>('cards')
   const [cards, setCards] = useState<UiCard[]>([])
   const [form, setForm] = useState<UiCard>(emptyForm)
   const [search, setSearch] = useState('')
@@ -90,7 +93,26 @@ export default function Admin() {
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
 
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [stats, setStats] = useState<AdminStats | null>(null)
+  const navigate = useNavigate()
+  // Свій рядок у таблиці блокуємо: бекенд однаково не дасть змінити/видалити себе
+  const currentUserId = auth.getUser()?.id
+
+  // Сторінка лише для адмінів. Це UX-заслін: реальний захист — [Authorize(Roles="Admin")]
+  useEffect(() => {
+    const u = auth.getUser()
+    if (!u || u.role !== 'Admin') navigate('/login')
+  }, [navigate])
+
   useEffect(() => { fetchCards() }, [])
+
+  useEffect(() => {
+    if (tab === 'users') {
+      fetchUsers()
+      fetchStats()
+    }
+  }, [tab])
 
   async function fetchCards() {
     try {
@@ -98,6 +120,43 @@ export default function Admin() {
       setCards(data.map(toUi))
     } catch (e) {
       setStatus({ kind: 'err', text: `Не вдалось завантажити: ${(e as Error).message}` })
+    }
+  }
+
+  async function fetchUsers() {
+    try {
+      setUsers(await adminApi.listUsers())
+    } catch (e) {
+      setStatus({ kind: 'err', text: `Не вдалось завантажити користувачів: ${(e as Error).message}` })
+    }
+  }
+
+  async function fetchStats() {
+    try {
+      setStats(await adminApi.stats())
+    } catch {
+      /* статистика не критична — таблиця працює й без неї */
+    }
+  }
+
+  async function changeRole(id: string, role: AdminUser['role']) {
+    try {
+      const updated = await adminApi.setRole(id, role)
+      setUsers(prev => prev.map(u => (u.id === id ? updated : u)))
+      showToast(`✦ Роль змінено на ${role}`)
+    } catch (e) {
+      setStatus({ kind: 'err', text: `Не вдалось змінити роль: ${(e as Error).message}` })
+    }
+  }
+
+  async function delUser(id: string) {
+    try {
+      await adminApi.deleteUser(id)
+      setUsers(prev => prev.filter(u => u.id !== id))
+      showToast('✕ Користувача видалено')
+      fetchStats()
+    } catch (e) {
+      setStatus({ kind: 'err', text: `Не вдалось видалити: ${(e as Error).message}` })
     }
   }
 
@@ -156,12 +215,20 @@ export default function Admin() {
         </Link>
 
         <div className="sb-group-label">Колода</div>
-        <a href="#" className="sb-item active"><span className="ic">✦</span> Карти</a>
+        <a
+          href="#"
+          className={`sb-item ${tab === 'cards' ? 'active' : ''}`}
+          onClick={e => { e.preventDefault(); setTab('cards') }}
+        ><span className="ic">✦</span> Карти</a>
         <a href="#" className="sb-item"><span className="ic">☾</span> Розклади</a>
         <a href="#" className="sb-item"><span className="ic">☉</span> Тлумачення</a>
 
         <div className="sb-group-label">Спільнота</div>
-        <a href="#" className="sb-item"><span className="ic">♁</span> Користувачі</a>
+        <a
+          href="#"
+          className={`sb-item ${tab === 'users' ? 'active' : ''}`}
+          onClick={e => { e.preventDefault(); setTab('users') }}
+        ><span className="ic">♁</span> Користувачі</a>
         <a href="#" className="sb-item"><span className="ic">☿</span> Підписки</a>
         <a href="#" className="sb-item"><span className="ic">⚖</span> Модерація</a>
 
@@ -176,14 +243,19 @@ export default function Admin() {
         <div className="topbar">
           <div className="breadcrumb">
             Lunaris <span className="sep">›</span>
-            Колода <span className="sep">›</span>
-            <span className="cur">Додати карту</span>
+            {tab === 'cards' ? (
+              <>Колода <span className="sep">›</span> <span className="cur">Додати карту</span></>
+            ) : (
+              <>Спільнота <span className="sep">›</span> <span className="cur">Користувачі</span></>
+            )}
           </div>
           <div className="topbar-actions">
             <span className="admin-badge">✦ Адміністратор</span>
           </div>
         </div>
 
+        {tab === 'cards' ? (
+        <>
         <div className="page-head">
           <div>
             <h1>Додати <span className="accent">карту</span></h1>
@@ -349,6 +421,84 @@ export default function Admin() {
             </div>
           </div>
         </div>
+        </>
+        ) : (
+        <>
+        <div className="page-head">
+          <div>
+            <h1>Користувачі <span className="accent">спільноти</span></h1>
+            <div className="sub">Ролі, тарифи та акаунти</div>
+          </div>
+          <div className="stats">
+            <div className="stat"><div className="n">{stats?.totalUsers ?? '—'}</div><div className="l">користувачів</div></div>
+            <div className="stat"><div className="n">{stats?.totalConversations ?? '—'}</div><div className="l">розмов</div></div>
+            <div className="stat"><div className="n">{stats?.totalMessages ?? '—'}</div><div className="l">повідомлень</div></div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <h2>
+            Усі користувачі{' '}
+            <span style={{ color: 'var(--gold-soft)', fontStyle: 'italic' }}>
+              ({users.length})
+            </span>
+          </h2>
+          <div className="panel-sub">Зміна ролі застосовується одразу; сам користувач побачить її після повторного входу</div>
+          {status && tab === 'users' && (
+            <div className={`admin-status ${status.kind}`} style={{ marginBottom: 10 }}>{status.text}</div>
+          )}
+
+          <div className="card-list">
+            {users.length === 0 ? (
+              <div className="empty-state">
+                <div className="glyph">♁</div>
+                <div className="t">Поки нікого</div>
+                <div className="s">Користувачі з'являться після реєстрації.</div>
+              </div>
+            ) : (
+              users.map(u => {
+                const isSelf = u.id === currentUserId
+                return (
+                  <div key={u.id} className="card-row">
+                    <div className="cr-sym">♁</div>
+                    <div className="cr-meta">
+                      <div className="t">
+                        {u.userName}{' '}
+                        {isSelf && (
+                          <span style={{ color: 'var(--gold-soft)', fontSize: '0.8em' }}>· це ви</span>
+                        )}
+                      </div>
+                      <div className="s">
+                        {u.email} · сьогодні: {u.dailyChatMessagesUsed} повід. / {u.dailyQuestionsUsed} розкладів
+                      </div>
+                    </div>
+                    <select
+                      className="role-select"
+                      value={u.role}
+                      disabled={isSelf}
+                      onChange={e => changeRole(u.id, e.target.value as AdminUser['role'])}
+                      title={isSelf ? 'Власну роль змінити не можна' : 'Змінити роль'}
+                    >
+                      {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                    <div className="cr-actions">
+                      <button
+                        className="cr-btn del"
+                        title={isSelf ? 'Себе видалити не можна' : 'Видалити акаунт'}
+                        disabled={isSelf}
+                        onClick={() => delUser(u.id)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+        </>
+        )}
       </section>
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast ?? '✦'}</div>

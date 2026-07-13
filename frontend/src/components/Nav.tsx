@@ -5,6 +5,7 @@ import {auth} from '../lib/api'
 export function Nav() {
     const navigate = useNavigate()
     const loggedIn = auth.isAuthenticated()
+    const isAdmin = auth.getUser()?.role === 'Admin'
 
     const handleLogout = () => {
         auth.clearToken()
@@ -19,11 +20,14 @@ export function Nav() {
             </Link>
             <div className="nav-links">
                 <Link to="/library" className="btn">Бібліотека</Link>
+                <Link to="/trainer" className="btn">Тренер</Link>
                 <Link to="/pricing" className="btn">Пакети</Link>
                 <Link to="/faq" className="btn">FAQ</Link>
                 {loggedIn ? (
                     <>
                         <Link to="/chat" className="btn">Гадання</Link>
+                        <Link to="/journal" className="btn">Журнал</Link>
+                        {isAdmin && <Link to="/admin" className="btn btn-primary">Адмінка</Link>}
                         <Link to="/profile" className="btn">Профіль</Link>
                         <button type="button" className="btn" onClick={handleLogout}>Вийти</button>
                     </>
