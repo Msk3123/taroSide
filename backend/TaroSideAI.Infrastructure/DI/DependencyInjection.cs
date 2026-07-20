@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TaroSideAI.Application.Interfaces;
+using TaroSideAI.Application.Options;
+using TaroSideAI.Infrastructure.Email;
 using TaroSideAI.Infrastructure.Repositories;
 
 namespace TaroSideAI.Infrastructure.DI;
@@ -15,6 +17,14 @@ public static class InfrastructureDі
         services.AddScoped<ISpreadRepository, SpreadRepository>();
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IAdminRepository, AdminRepository>();
+
+        // Email: налаштування читаємо з секції "Email" один раз,
+        // а сервіс реєструємо ЗА ІНТЕРФЕЙСОМ — щоб UserService просив IEmailSender,
+        // не знаючи, що за ним стоїть саме SMTP (завтра — Brevo, і цей файл
+        // буде єдиним місцем зміни)
+        var emailSettings = config.GetSection("Email").Get<EmailSettings>() ?? new EmailSettings();
+        services.AddSingleton(emailSettings);
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
 
         return services;
     }

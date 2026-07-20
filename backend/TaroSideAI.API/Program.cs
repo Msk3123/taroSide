@@ -29,6 +29,11 @@ builder.Services.AddIdentity<AppUser, IdentityRole<Guid>>(options =>
     options.Password.RequiredLength = 8;
     options.Password.RequireNonAlphanumeric = false;
     options.User.RequireUniqueEmail = true;
+
+    // Токен підтвердження пошти: замість довжелезного рядка (для посилань)
+    // генеруємо короткий цифровий код (для вводу руками) — це вбудований
+    // TOTP-провайдер Identity, він сам стежить за часом життя й одноразовістю
+    options.Tokens.EmailConfirmationTokenProvider = TokenOptions.DefaultEmailProvider;
 })
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
