@@ -2,15 +2,15 @@ import {useEffect, useRef, useState} from 'react'
 import {Link, useNavigate} from 'react-router-dom'
 import BrandMark from '../components/BrandMark'
 import {
-    auth,
-    conversationApi,
-    userApi,
     ApiError,
-    UNLIMITED,
+    auth,
     type Conversation,
+    conversationApi,
     type CurrentUser,
-    type UserUsage,
     type DrawnCard,
+    UNLIMITED,
+    userApi,
+    type UserUsage,
 } from '../lib/api'
 
 
@@ -92,12 +92,15 @@ function cardsToSpread(cards: DrawnCard[]): MiniCard[] {
 }
 
 /** Коротка дата для пункту історії: сьогодні → час, цей тиждень → день, інакше → дд.мм. */
-function shortDate(iso: string): {label: string; group: 'today' | 'week' | 'earlier'} {
+function shortDate(iso: string): { label: string; group: 'today' | 'week' | 'earlier' } {
     const d = new Date(iso)
     const now = new Date()
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const ageDays = (startOfToday.getTime() - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86_400_000
-    if (ageDays <= 0) return {label: d.toLocaleTimeString('uk-UA', {hour: '2-digit', minute: '2-digit'}), group: 'today'}
+    if (ageDays <= 0) return {
+        label: d.toLocaleTimeString('uk-UA', {hour: '2-digit', minute: '2-digit'}),
+        group: 'today'
+    }
     if (ageDays < 7) return {label: d.toLocaleDateString('uk-UA', {weekday: 'short'}), group: 'week'}
     return {label: d.toLocaleDateString('uk-UA', {day: '2-digit', month: '2-digit'}), group: 'earlier'}
 }
@@ -134,16 +137,21 @@ export default function Chat() {
             navigate('/login')
             return
         }
-        userApi.me().then(u => { setUser(u); auth.setUser(u) }).catch(() => {
+        userApi.me().then(u => {
+            setUser(u);
+            auth.setUser(u)
+        }).catch(() => {
             auth.clearToken()
             navigate('/login')
         })
         refreshUsage()
-        conversationApi.list().then(setConversations).catch(() => { /* мовчазно */ })
+        conversationApi.list().then(setConversations).catch(() => { /* мовчазно */
+        })
     }, [])
 
     function refreshUsage() {
-        userApi.usage().then(setUsage).catch(() => { /* ліміти не критичні для відмалювання */ })
+        userApi.usage().then(setUsage).catch(() => { /* ліміти не критичні для відмалювання */
+        })
     }
 
     useEffect(() => {
@@ -209,7 +217,8 @@ export default function Chat() {
                         try {
                             const cards = JSON.parse(m.cardsJson) as DrawnCard[]
                             if (cards.length) msg.spread = cardsToSpread(cards)
-                        } catch { /* зіпсований JSON — просто без карт */ }
+                        } catch { /* зіпсований JSON — просто без карт */
+                        }
                     }
                     return msg
                 })
@@ -478,6 +487,7 @@ export default function Chat() {
                   ref={taRef}
                   placeholder="Запитайте карти про будь-що..."
                   rows={1}
+                  maxLength={500}
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={onKeyDown}

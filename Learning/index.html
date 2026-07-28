@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lunaris Codex — від Junior до Middle .NET</title>
+<style>
+  :root{
+    --bg:#0b0a16; --bg2:#14112a; --panel:#161329; --panel2:#1c1836;
+    --ink:#e9e5f7; --ink-dim:#b6b0d4; --ink-faint:#8078a0;
+    --gold:#d9b46a; --gold-soft:#ecd3a0;
+    --teal:#5fc9c0; --violet:#a78bfa; --warn:#f0a860; --ok:#7fd88f; --rose:#e08bb0;
+    --border:rgba(217,180,106,.18); --code-bg:#0e0c1c;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:radial-gradient(ellipse at top, var(--bg2), var(--bg) 60%);
+    color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    line-height:1.65; font-size:16px;
+  }
+  h1,h2,h3,h4{font-family:Georgia,"Cambria","Times New Roman",serif; color:var(--gold-soft); font-weight:600}
+  a{color:var(--teal); text-decoration:none}
+  code{font-family:"JetBrains Mono",ui-monospace,Consolas,Menlo,monospace; font-size:.88em; background:var(--code-bg); padding:.1em .35em; border-radius:4px; color:var(--gold-soft)}
+
+  .topbar{
+    position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:1rem;
+    background:rgba(11,10,22,.9); backdrop-filter:blur(6px); border-bottom:1px solid var(--border);
+    padding:.7rem 1.2rem;
+  }
+  .topbar a.home{color:var(--gold-soft); font-family:Georgia,serif}
+  .topbar .crumb{color:var(--ink-faint); font-size:.85rem}
+
+  .cover{ text-align:center; padding:3.5rem 1.4rem 2rem; position:relative}
+  .cover .sym{font-size:2.4rem; color:var(--gold); letter-spacing:.4rem}
+  .cover h1{font-size:2.3rem; margin:.6rem 0 .2rem}
+  .cover .sub{color:var(--ink-dim)}
+  .cover .tag{max-width:640px; margin:1rem auto 0; color:var(--ink-faint); font-size:.95rem}
+  .badges{display:flex; flex-wrap:wrap; gap:.5rem; justify-content:center; margin:1.3rem 0}
+  .badge{font-size:.72rem; padding:.25rem .6rem; border-radius:20px; border:1px solid var(--border); color:var(--ink-faint); font-family:"JetBrains Mono",monospace}
+  .meta{color:var(--ink-faint); font-size:.8rem; margin-top:1.2rem; line-height:1.6}
+
+  .wrap{max-width:880px; margin:0 auto; padding:0 1.4rem 5rem}
+
+  .box{border-radius:10px; padding:1rem 1.2rem; margin:1.2rem 0; border:1px solid var(--border); background:var(--panel)}
+  .box .t{display:block; font-weight:700; margin-bottom:.4rem; font-family:Georgia,serif; color:var(--teal)}
+
+  .card-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:.9rem; margin:1.5rem 0}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:1rem}
+  .card h4{margin:0 0 .3rem; font-size:.95rem}
+  .muted{color:var(--ink-faint); font-size:.85rem; margin:0}
+
+  .section-title{margin:2.6rem 0 .8rem; font-size:.8rem; letter-spacing:.1rem; text-transform:uppercase; color:var(--gold); border-bottom:1px solid var(--border); padding-bottom:.4rem}
+  .section-title .hint{color:var(--ink-faint); font-weight:400; text-transform:none; letter-spacing:0}
+
+  .chapter-link{display:flex; align-items:center; gap:1rem; padding:1rem 1.1rem; margin:.6rem 0; border:1px solid var(--border); border-radius:12px; background:var(--panel); transition:border-color .15s, transform .15s}
+  .chapter-link:hover{border-color:var(--gold); transform:translateX(2px)}
+  .chapter-link .ci{font-family:"JetBrains Mono",monospace; font-size:1.3rem; color:var(--gold); min-width:2.2rem}
+  .chapter-link .cbody h4{margin:0 0 .2rem; color:var(--ink)}
+  .chapter-link .cbody p{margin:0; color:var(--ink-faint); font-size:.87rem}
+  .chapter-link .cdone{margin-left:auto; color:var(--ok); font-size:1.1rem}
+
+  .chapter-link.planned{opacity:.55; cursor:default}
+  .chapter-link.planned:hover{border-color:var(--border); transform:none}
+  .chapter-link.planned .ci{color:var(--ink-faint)}
+  .chapter-link.planned .cdone{color:var(--ink-faint); font-size:.7rem; font-family:inherit; letter-spacing:.05rem}
+
+  .backlog{display:flex; flex-wrap:wrap; gap:.6rem; margin:1rem 0 2rem}
+  .backlog span{font-size:.82rem; padding:.4rem .7rem; border-radius:8px; border:1px solid var(--border); color:var(--ink-faint); background:var(--panel)}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="home" href="index.html">☾ Lunaris Codex</a>
+  <span class="crumb">v1.1 · персональна книга Максима</span>
+</header>
+
+<div class="cover">
+  <div class="sym">☾ ✦ ☉</div>
+  <h1>Від Junior до Middle</h1>
+  <div class="sub">.NET Backend · на прикладі TaroSideAI</div>
+  <p class="tag">Жива книга, зібрана навколо твого власного проєкту. Кожен приклад коду — з твоїх файлів, і кожен нетривіальний факт у ній перевірений компіляцією чи запуском, а не переказаний з пам'яті. Порядок розділів іде не за красивою навчальною програмою, а за твоїми реальними слабкими місцями — щоб найдорожчий для співбесіди матеріал ти отримав першим.</p>
+  <div class="badges">
+    <span class="badge">.NET 9 · C# 13</span>
+    <span class="badge">Clean Architecture</span>
+    <span class="badge">EF Core + PostgreSQL</span>
+    <span class="badge">JWT + Identity</span>
+    <span class="badge">LLM Function Calling</span>
+    <span class="badge">React + Vite</span>
+  </div>
+  <div class="meta">Автор проєкту: Максим Палій<br>Підготовлено як персональний навчальний довідник</div>
+</div>
+
+<main class="wrap">
+
+  <div class="box">
+    <span class="t">📌 Як побудована ця книга</span>
+    Розділи 1–6 — це рівно ті шість слабких місць, які ти сам назвав: function calling, JWT, тестування, CI/CD, Azure, LLM під капотом. Кожен написаний за принципом ЧОМУ → ЯК → КОД, з мінімальним прикладом з нуля, розбором твого реального файлу, і завданням «відтвори сам» наприкінці. Розділи нижче ("резерв") — це поглиблення архітектури проєкту загалом; вони чекають своєї черги, коли пріоритетні шість будуть закриті.
+  </div>
+
+  <div class="card-grid">
+    <div class="card"><h4 style="color:var(--teal)">📌 Просто</h4><p class="muted">Пояснення «на пальцях».</p></div>
+    <div class="card"><h4 style="color:var(--violet)">🔬 Глибше</h4><p class="muted">Механіка під капотом, перевірена запуском.</p></div>
+    <div class="card"><h4 style="color:var(--warn)">⚠️ Увага</h4><p class="muted">Помилки й вразливості у твоєму коді — прямо.</p></div>
+    <div class="card"><h4 style="color:var(--gold-soft)">🎤 Співбесіда</h4><p class="muted">Готова відповідь на типове питання.</p></div>
+    <div class="card"><h4 style="color:var(--ok)">🛠 Практика</h4><p class="muted">Завдання, яке робиш руками.</p></div>
+  </div>
+
+  <div class="section-title">Пріоритетні розділи <span class="hint">— твої реальні слабкі місця, у цьому порядку</span></div>
+
+  <a class="chapter-link" href="01-ai.html">
+    <div class="ci">01</div>
+    <div class="cbody"><h4>AI та Function / Tool Calling</h4><p>Microsoft.Extensions.AI, IChatClient, AIFunctionFactory. Повний HTTP-обмін, JSON Schema, розбір ChatAiService.cs.</p></div>
+    <div class="cdone">✦</div>
+  </a>
+
+  <a class="chapter-link" href="02-jwt.html">
+    <div class="ci">02</div>
+    <div class="cbody"><h4>JWT та ASP.NET Identity</h4><p>Анатомія токена побайтово, HMAC-SHA256, повний pipeline логін→claims→User.FindFirstValue, розбір Program.cs + TokenService.cs, IDOR у ConversationsController.</p></div>
+    <div class="cdone">✦</div>
+  </a>
+
+  <a class="chapter-link" href="03-testing.html">
+    <div class="ci">03</div>
+    <div class="cbody"><h4>Тестування — з нуля</h4><p>Unit vs integration, xUnit + Moq на реальному CardService/ConversationService, WebApplicationFactory, перші 10 тестів.</p></div>
+    <div class="cdone">✦</div>
+  </a>
+
+  <a class="chapter-link" href="04-cicd.html">
+    <div class="ci">04</div>
+    <div class="cbody"><h4>CI/CD та Azure DevOps</h4><p>Анатомія пайплайну, реальний ci.yml для твого solution, azure-pipelines.yml поруч, Docker vs App Service.</p></div>
+    <div class="cdone">✦</div>
+  </a>
+
+  <a class="chapter-link" href="05-azure.html">
+    <div class="ci">05</div>
+    <div class="cbody"><h4>Azure / хмара</h4><p>App Service vs Functions vs Container Apps vs AKS, Postgres Flexible Server, Key Vault, Service Bus, App Insights, реальний деплой TaroSideAI.</p></div>
+    <div class="cdone">✦</div>
+  </a>
+
+  <a class="chapter-link" href="06-llm-internals.html">
+    <div class="ci">06</div>
+    <div class="cbody"><h4>Як насправді влаштовані LLM</h4><p>Ваги vs embeddings vs векторні БД, токенізація (реальні цифри UK/EN), attention, RAG на pgvector, безпека.</p></div>
+    <div class="cdone">✦</div>
+  </a>
+
+  <div class="section-title">Резерв <span class="hint">— поглиблення архітектури проєкту, коли пріоритетні шість закриті</span></div>
+  <div class="backlog">
+    <span>Чиста архітектура</span>
+    <span>Domain — сутності й enum</span>
+    <span>Infrastructure + EF Core</span>
+    <span>Application — сервіси й DTO</span>
+    <span>API — контролери</span>
+    <span>Program.cs, DI, middleware</span>
+    <span>Фронтенд з нуля до React</span>
+    <span>Співбесіда + роадмапа</span>
+  </div>
+
+</main>
+
+</body>
+</html>

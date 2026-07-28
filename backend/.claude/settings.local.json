@@ -26,7 +26,8 @@
       "mcp__cwm-roslyn-navigator__find_symbol",
       "PowerShell(Get-NetTCPConnection *)",
       "PowerShell(dotnet run *)",
-      "PowerShell(cd ..\\\\frontend; node node_modules\\\\typescript\\\\bin\\\\tsc --noEmit -p tsconfig.json; if \\($LASTEXITCODE -eq 0\\) { 'TSC OK' } else { \"TSC FAILED: $LASTEXITCODE\" })"
+      "PowerShell(cd ..\\\\frontend; node node_modules\\\\typescript\\\\bin\\\\tsc --noEmit -p tsconfig.json; if \\($LASTEXITCODE -eq 0\\) { 'TSC OK' } else { \"TSC FAILED: $LASTEXITCODE\" })",
+      "Bash(git -C \"D:/Programiring/TaroSideIA/backend\" status)"
     ]
   }
 }
