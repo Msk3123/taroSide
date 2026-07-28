@@ -9,8 +9,8 @@ using OpenAI;
 using TaroSideAI.Application.DI;
 using TaroSideAI.Application.Options;
 using TaroSideAI.Domain.Entities;
-using TaroSideAI.Infrastructure.Persistence;
 using TaroSideAI.Infrastructure.DI;
+using TaroSideAI.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,19 +24,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // 2. IDENTITY
 // ──────────────────────────────────────────────
 builder.Services.AddIdentity<AppUser, IdentityRole<Guid>>(options =>
-{
-    options.Password.RequireDigit = true;
-    options.Password.RequiredLength = 8;
-    options.Password.RequireNonAlphanumeric = false;
-    options.User.RequireUniqueEmail = true;
-
-    // Токен підтвердження пошти: замість довжелезного рядка (для посилань)
-    // генеруємо короткий цифровий код (для вводу руками) — це вбудований
-    // TOTP-провайдер Identity, він сам стежить за часом життя й одноразовістю
-    options.Tokens.EmailConfirmationTokenProvider = TokenOptions.DefaultEmailProvider;
-})
-.AddEntityFrameworkStores<AppDbContext>()
-.AddDefaultTokenProviders();
+    {
+        options.Password.RequireDigit = true;
+        options.Password.RequiredLength = 8;
+        options.Password.RequireNonAlphanumeric = false;
+        options.User.RequireUniqueEmail = true;
+    })
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
 
 
 // ──────────────────────────────────────────────
@@ -48,23 +43,23 @@ var secretKey = jwtSection["SecretKey"]!;
 builder.Services.Configure<JwtSettings>(jwtSection);
 
 builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSection["Issuer"],
-        ValidAudience = jwtSection["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
-    };
-});
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSection["Issuer"],
+            ValidAudience = jwtSection["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        };
+    });
 
 // ──────────────────────────────────────────────
 // 4. CORS
@@ -75,9 +70,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
         policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials());
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
 });
 
 // ──────────────────────────────────────────────
@@ -95,7 +90,7 @@ builder.Services.AddSingleton<IChatClient>(sp =>
             "OpenAI не налаштовано: відсутній API-ключ. Вкажіть OpenAI:OpenAiApiKey у " +
             "appsettings.Development.json або змінну середовища OpenAI__OpenAiApiKey.");
 
-    IChatClient openai = new OpenAIClient(cfg.OpenAiApiKey)
+    var openai = new OpenAIClient(cfg.OpenAiApiKey)
         .GetChatClient(cfg.OpenAiModel)
         .AsIChatClient();
     return new ChatClientBuilder(openai)
@@ -131,7 +126,8 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
+            new OpenApiSecurityScheme
+                { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
             []
         }
     });
