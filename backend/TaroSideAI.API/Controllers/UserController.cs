@@ -1,9 +1,8 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaroSideAI.Application.DTOs;
 using TaroSideAI.Application.Interfaces;
-using TaroSideAI.Domain.Entities;
+using TaroSideAI.API.Extensions;
 namespace TaroSideAI.API.Controllers;
 
 [ApiController]
@@ -17,11 +16,14 @@ public class UserController : ControllerBase
         _userService = userService;
     }
     
-    
     [Authorize] 
     [HttpPut("{id:guid}")]
-    
     public async Task<ActionResult<object>> UpdateUserAsync(Guid id, [FromBody] UpdateUserDto updateDto)    {
+        var callerId = User.GetUserId();
+        if (callerId is null) return Unauthorized();
+        
+        if (id != callerId) return Forbid(); 
+        
         var user = await _userService.GetUserByIdAsync(id);
         if (user is null) return NotFound("Користувача не знайдено");
         if (updateDto.UserName != null)
@@ -37,10 +39,15 @@ public class UserController : ControllerBase
             updatedUser.Email,
         });
     }
+    
     [Authorize] 
     [HttpDelete("{id:guid}")]
-    public async Task<ActionResult<AppUser>> DeleteUserAsync(Guid id)
+    public async Task<IActionResult> DeleteUserAsync(Guid id)
     {
+        var callerId = User.GetUserId();
+        if (callerId is null) return Unauthorized();
+        if (id != callerId) return Forbid();
+
         var user = await _userService.GetUserByIdAsync(id);
         if (user is null)
         {
@@ -54,9 +61,9 @@ public class UserController : ControllerBase
     [HttpGet("me")]
     public async Task<ActionResult> GetCurrentUserAsync()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = User.GetUserId();
         if (userId is null) return Unauthorized();
-        var user = await _userService.GetUserByIdAsync(Guid.Parse(userId));
+        var user = await _userService.GetUserByIdAsync(userId.Value);
         if (user is null) return NotFound();
         return Ok(new
         {
@@ -74,9 +81,9 @@ public class UserController : ControllerBase
     [HttpGet("usage")]
     public async Task<ActionResult<UserUsageDto>> GetUsageAsync()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = User.GetUserId();
         if (userId is null) return Unauthorized();
-        var usage = await _userService.GetUsageAsync(Guid.Parse(userId));
+        var usage = await _userService.GetUsageAsync(userId.Value);
         return Ok(usage);
     }
 

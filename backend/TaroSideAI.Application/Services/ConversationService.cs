@@ -39,16 +39,15 @@ public class ConversationService : IConversationService
     {
         return await _repo.GetByIdAsync(id);
     }
-    public async Task<ChatResultDto> ProcessUserMessageAsync(Guid conversationId, string message, int spreadId, CancellationToken ct)
+    public async Task<ChatResultDto> ProcessUserMessageAsync(Guid conversationId, string message, Guid userId, int spreadId, CancellationToken ct)
     {
+        
         var conv = await _repo.GetByIdAsync(conversationId);
-        if (conv == null) throw new Exception("Чат не знайдено");
+        if (conv == null || conv.UserId != userId) throw new Exception("Чат не знайдено");
 
-        // Денний ліміт повідомлень: кине LimitExceededException, якщо вичерпано.
-        // allowance.CanDraw — чи дозволено новий розклад; allowance.MaxCards — ліміт карт за тарифом.
+       
         var allowance = await _userService.CheckMessageAllowanceAsync(conv.UserId);
-
-        // Зберігаємо повідомлення користувача
+        
         var userMsg = new Message
         {
             Id = Guid.NewGuid(),

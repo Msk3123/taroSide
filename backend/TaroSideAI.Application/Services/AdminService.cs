@@ -36,8 +36,7 @@ public class AdminService : IAdminService
         if (!result.Succeeded)
             throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
 
-        // Увага: роль зашита в JWT, тому в юзера вона реально зміниться
-        // після наступного логіну (старий токен живе до expiry зі старою роллю).
+
         return ToDto(user);
     }
 

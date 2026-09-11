@@ -1,6 +1,6 @@
-﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TaroSideAI.API.Extensions;
 using TaroSideAI.Application.Exceptions;
 using TaroSideAI.Application.Interfaces;
 
@@ -21,39 +21,48 @@ public class ConversationsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateConversationDto dto)
     {
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var conv = await _conversationService.CreateConversationAsync(userId, dto.Title);
+        var userId = User.GetUserId();                        
+        if (userId is null) return Unauthorized();
+        var conv = await _conversationService.CreateConversationAsync(userId.Value, dto.Title);
         return Ok(conv);
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var list = await _conversationService.GetUserConversationsAsync(userId);
+        var userId = User.GetUserId();                        
+        if (userId is null) return Unauthorized();
+        var list = await _conversationService.GetUserConversationsAsync(userId.Value);
         return Ok(list);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
+        var userId = User.GetUserId();                        
+        if (userId is null) return Unauthorized();
         var conv = await _conversationService.GetConversationByIdAsync(id);
-        if (conv == null) return NotFound();
+        
+        if (conv == null || conv.UserId != userId) return NotFound();
+        
         return Ok(conv);
     }
 
     [HttpPost("{id:guid}/messages")]
     public async Task<IActionResult> SendMessage(Guid id, [FromBody] SendMessageDto dto, CancellationToken ct)
     {
+        var userId = User.GetUserId();                        
+        if (userId is null) return Unauthorized();
+        
+        var conv = await _conversationService.GetConversationByIdAsync(id);
+        if (conv == null || conv.UserId != userId) return NotFound();
         try
         {
-            // result = { Reply, Cards[] } → серіалізується в { reply, cards }
-            var result = await _conversationService.ProcessUserMessageAsync(id, dto.Message, dto.SpreadId, ct);
+            var result = await _conversationService.ProcessUserMessageAsync(id, dto.Message, userId.Value, dto.SpreadId, ct);
             return Ok(result);
         }
         catch (LimitExceededException ex)
         {
-            // 429 Too Many Requests — денний ліміт тарифу вичерпано.
             return StatusCode(429, new { message = ex.Message });
         }
         catch (Exception)
