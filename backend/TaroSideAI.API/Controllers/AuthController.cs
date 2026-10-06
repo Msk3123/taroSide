@@ -19,28 +19,14 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponseDto>> LoginAsync([FromBody] LoginDto loginDto)
     {
-        try
-        {
-            return Ok(await _authService.SignInAsync(loginDto));
-        }
-        catch (Exception ex)
-        {
-            return Unauthorized(new { message = ex.Message });
-        }
+        return Ok(await _authService.SignInAsync(loginDto));
     }
     
     [HttpPost("register")]
     public async Task<ActionResult<object>> CreateUserAsync([FromBody] CreateUsersDto createUsersDto)
     {
-        try
-        {
-            var user = await _userService.CreateUserAsync(createUsersDto);
-            return Ok(new { user.Id, user.UserName, user.Email });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var user = await _userService.CreateUserAsync(createUsersDto);
+        return Ok(new { user.Id, user.UserName, user.Email });
     }
     
     [Authorize]
@@ -49,15 +35,8 @@ public class AuthController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is null) return Unauthorized();
-        try
-        {
-            await _authService.ChangePasswordAsync(Guid.Parse(userId), dto);
-            return NoContent();
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        await _authService.ChangePasswordAsync(Guid.Parse(userId), dto);
+        return NoContent();
     }
 
 }

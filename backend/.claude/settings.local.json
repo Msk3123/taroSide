@@ -27,7 +27,24 @@
       "PowerShell(Get-NetTCPConnection *)",
       "PowerShell(dotnet run *)",
       "PowerShell(cd ..\\\\frontend; node node_modules\\\\typescript\\\\bin\\\\tsc --noEmit -p tsconfig.json; if \\($LASTEXITCODE -eq 0\\) { 'TSC OK' } else { \"TSC FAILED: $LASTEXITCODE\" })",
-      "Bash(git -C \"D:/Programiring/TaroSideIA/backend\" status)"
+      "Bash(git -C \"D:/Programiring/TaroSideIA/backend\" status)",
+      "Bash(awk 'NR>200' TaroSideAI.Infrastructure/Migrations/20260325105429_InitialCreate.cs)",
+      "Bash(dotnet new *)",
+      "Bash(dotnet add *)",
+      "Bash(dotnet run *)",
+      "Bash(sed 's/Password=[^;]*/Password=***/')",
+      "Bash(echo \"exit=$?\")",
+      "Bash(export PGPASSWORD=\"\")",
+      "Bash(\"C:/Program Files/PostgreSQL/17/bin/psql.exe\" -h localhost -U postgres -d postgres -c \"SELECT version\\(\\);\")",
+      "Bash(\"C:/Program Files/PostgreSQL/17/bin/psql.exe\" -h localhost -U postgres -d postgres -c \"CREATE DATABASE taro_ef_probe_tmp;\")",
+      "Bash(sed 's/<[^>]*>//g')",
+      "Bash(dotnet --version)",
+      "Bash(dotnet --list-sdks)",
+      "WebSearch",
+      "mcp__cwm-roslyn-navigator__get_diagnostics",
+      "mcp__cwm-roslyn-navigator__detect_antipatterns",
+      "mcp__cwm-roslyn-navigator__detect_circular_dependencies",
+      "mcp__cwm-roslyn-navigator__get_test_coverage_map"
     ]
   }
 }

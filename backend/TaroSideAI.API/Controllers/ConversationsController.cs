@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaroSideAI.API.Extensions;
-using TaroSideAI.Application.Exceptions;
 using TaroSideAI.Application.Interfaces;
 
 namespace TaroSideAI.API.Controllers;
@@ -56,19 +55,9 @@ public class ConversationsController : ControllerBase
         
         var conv = await _conversationService.GetConversationByIdAsync(id);
         if (conv == null || conv.UserId != userId) return NotFound();
-        try
-        {
-            var result = await _conversationService.ProcessUserMessageAsync(id, dto.Message, userId.Value, dto.SpreadId, ct);
-            return Ok(result);
-        }
-        catch (LimitExceededException ex)
-        {
-            return StatusCode(429, new { message = ex.Message });
-        }
-        catch (Exception)
-        {
-            return StatusCode(500, new { message = "Сталась помилка" });
-        }
+
+        var result = await _conversationService.ProcessUserMessageAsync(id, dto.Message, userId.Value, dto.SpreadId, ct);
+        return Ok(result);
     }
 }
 

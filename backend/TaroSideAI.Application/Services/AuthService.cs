@@ -2,6 +2,7 @@ using TaroSideAI.Application.DTOs;
 using TaroSideAI.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using TaroSideAI.Application.Interfaces;
+using TaroSideAI.Application.Exceptions;
 
 namespace TaroSideAI.Application.Services;
 
@@ -21,13 +22,13 @@ public class AuthService : IAuthService
         var user = await _userManager.FindByNameAsync(loginDto.UserName);
         if (user == null)
         {
-            throw new Exception("Invalid username or password");
+            throw new InvalidCredentialsException();
         }
         
         var result = await _userManager.CheckPasswordAsync(user, loginDto.Password);
         if (!result)
         {
-                throw new Exception("Invalid username or password");
+                throw new InvalidCredentialsException();
         }
         
         var userJwt = _tokenService.GenerateToken(user);
@@ -43,11 +44,11 @@ public class AuthService : IAuthService
     public async Task ChangePasswordAsync(Guid userId, ChangePasswordDto dto)
     {
         var user = await _userManager.FindByIdAsync(userId.ToString())
-                   ?? throw new Exception("Користувача не знайдено");
+                   ?? throw new NotFoundException("Користувач");
 
         var result = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
         if (!result.Succeeded)
-            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+            throw new ValidationException(string.Join(", ", result.Errors.Select(e => e.Description)));
     }
 
 }

@@ -10,6 +10,7 @@ using TaroSideAI.Application.DI;
 using TaroSideAI.Application.Options;
 using TaroSideAI.Domain.Entities;
 using TaroSideAI.Infrastructure.DI;
+using TaroSideAI.API.Errors;
 using TaroSideAI.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -105,6 +106,9 @@ builder.Services
 
 
 // ──────────────────────────────────────────────
+builder.Services.AddProblemDetails();                        
+builder.Services.AddExceptionHandler<AppExceptionHandler>();
+// ──────────────────────────────────────────────
 // 6. CONTROLLERS + SWAGGER
 // ──────────────────────────────────────────────
 builder.Services.AddControllers();
@@ -133,11 +137,13 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+
+
 // ──────────────────────────────────────────────
 // PIPELINE
 // ──────────────────────────────────────────────
 var app = builder.Build();
-
+app.UseExceptionHandler(); 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

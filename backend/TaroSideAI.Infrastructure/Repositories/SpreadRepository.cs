@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TaroSideAI.Application.Exceptions;
 using TaroSideAI.Application.Interfaces;
 using TaroSideAI.Domain.Entities;
 using TaroSideAI.Infrastructure.Persistence;
@@ -42,7 +43,7 @@ public class SpreadRepository : ISpreadRepository
     {
         var spread = await _db.Spreads.FindAsync(id);
         if (spread == null)
-            throw new Exception("Spread not found");
+            throw new NotFoundException("Розклад");
         _db.Spreads.Remove(spread);
         await _db.SaveChangesAsync();
         return true;

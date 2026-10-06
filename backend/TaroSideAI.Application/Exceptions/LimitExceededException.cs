@@ -4,7 +4,7 @@ namespace TaroSideAI.Application.Exceptions;
 /// Кидається, коли користувач перевищив денний ліміт свого тарифу
 /// (повідомлення або розклади). Контролер мапить це у HTTP 429.
 /// </summary>
-public class LimitExceededException : Exception
+public class LimitExceededException : AppException
 {
     public LimitExceededException(string message) : base(message) { }
 }

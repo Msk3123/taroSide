@@ -78,7 +78,9 @@ export async function api<T = unknown>(
     let message = text || `HTTP ${res.status}`
     try {
       const json = JSON.parse(text)
-      if (json.message) message = json.message
+      // ProblemDetails (RFC 9457) кладе текст у detail/title.
+      // message лишаємо останнім — для ендпоінтів, які ще віддають старий формат.
+      message = json.detail ?? json.title ?? json.message ?? message
     } catch { /* not JSON */ }
     throw new ApiError(message, res.status)
   }

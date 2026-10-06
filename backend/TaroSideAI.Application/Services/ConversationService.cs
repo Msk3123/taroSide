@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using TaroSideAI.Application.DTOs;
+using TaroSideAI.Application.Exceptions;
 using TaroSideAI.Application.Interfaces;
 using TaroSideAI.Domain.Entities;
 using Microsoft.Extensions.AI;
@@ -43,7 +44,7 @@ public class ConversationService : IConversationService
     {
         
         var conv = await _repo.GetByIdAsync(conversationId);
-        if (conv == null || conv.UserId != userId) throw new Exception("Чат не знайдено");
+        if (conv == null || conv.UserId != userId) throw new NotFoundException("Чат");
 
        
         var allowance = await _userService.CheckMessageAllowanceAsync(conv.UserId);

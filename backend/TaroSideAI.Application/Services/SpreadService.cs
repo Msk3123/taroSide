@@ -67,12 +67,8 @@ public class SpreadService : ISpreadService
     }
     public async Task<bool> DeleteSpreadAsync(int id)
     {
-        var result = await _spreadRepository.DeleteSpreadAsync(id);
-        if (!result)
-        {
-            throw new Exception("Failed to delete spread");
-        }
-        return true;
+        // Репозиторій або кидає NotFoundException, або повертає true — іншого шляху немає.
+        return await _spreadRepository.DeleteSpreadAsync(id);
     }
     
     

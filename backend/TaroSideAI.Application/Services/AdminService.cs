@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using TaroSideAI.Application.DTOs;
+using TaroSideAI.Application.Exceptions;
 using TaroSideAI.Application.Interfaces;
 using TaroSideAI.Domain.Entities;
 using TaroSideAI.Domain.Enums;
@@ -34,7 +35,7 @@ public class AdminService : IAdminService
         user.Role = role;
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
-            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+            throw new ValidationException(string.Join(", ", result.Errors.Select(e => e.Description)));
 
 
         return ToDto(user);
@@ -47,7 +48,7 @@ public class AdminService : IAdminService
 
         var result = await _userManager.DeleteAsync(user);
         if (!result.Succeeded)
-            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+            throw new ValidationException(string.Join(", ", result.Errors.Select(e => e.Description)));
 
         return true;
     }

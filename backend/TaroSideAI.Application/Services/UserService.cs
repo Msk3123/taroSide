@@ -28,7 +28,7 @@ public class UserService : IUserService
         var result = await _userManager.CreateAsync(user, createUsersDto.Password);
 
         if (!result.Succeeded)
-            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+            throw new ValidationException(string.Join(", ", result.Errors.Select(e => e.Description)));
 
         return user;
     }
@@ -37,7 +37,7 @@ public class UserService : IUserService
     {
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
-            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+            throw new ValidationException(string.Join(", ", result.Errors.Select(e => e.Description)));
         await _userManager.UpdateSecurityStampAsync(user);
         return user;
     }
@@ -46,7 +46,7 @@ public class UserService : IUserService
     {
         var result = await _userManager.DeleteAsync(user);
         if (!result.Succeeded)
-            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+            throw new ValidationException(string.Join(", ", result.Errors.Select(e => e.Description)));
         return user;
     }
     
@@ -62,7 +62,7 @@ public class UserService : IUserService
     public async Task<UserUsageDto> GetUsageAsync(Guid userId)
     {
         var user = await _userManager.FindByIdAsync(userId.ToString())
-                   ?? throw new Exception("Користувача не знайдено");
+                   ?? throw new NotFoundException("Користувач");
 
         if (ApplyDailyReset(user))
             await _userManager.UpdateAsync(user);
@@ -73,7 +73,7 @@ public class UserService : IUserService
     public async Task<MessageAllowance> CheckMessageAllowanceAsync(Guid userId)
     {
         var user = await _userManager.FindByIdAsync(userId.ToString())
-                   ?? throw new Exception("Користувача не знайдено");
+                   ?? throw new NotFoundException("Користувач");
 
         var changed = ApplyDailyReset(user);
         var policy = RolePolicies.For(user.Role);
