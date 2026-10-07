@@ -19,6 +19,9 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
     
     public DbSet<Conversation> Conversations => Set<Conversation>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<DailyCard> DailyCards => Set<DailyCard>();
+    public DbSet<AnalyticsEvent> AnalyticsEvents => Set<AnalyticsEvent>();
+    public DbSet<SupportMessage> SupportMessages => Set<SupportMessage>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

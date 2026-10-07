@@ -54,7 +54,11 @@ public class UserService : IUserService
     
     public async Task<AppUser?> GetUserByIdAsync(Guid id)
     {
-        return await _userManager.FindByIdAsync(id.ToString());
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        // /me теж має показувати актуальний тариф, а не прострочений
+        if (user is not null && ApplySubscriptionExpiry(user))
+            await _userManager.UpdateAsync(user);
+        return user;
     }
 
     /* ------------------- Денні ліміти ------------------- */
@@ -64,7 +68,8 @@ public class UserService : IUserService
         var user = await _userManager.FindByIdAsync(userId.ToString())
                    ?? throw new NotFoundException("Користувач");
 
-        if (ApplyDailyReset(user))
+        // | а не || — обидві перевірки мають виконатись, навіть якщо перша вже щось змінила
+        if (ApplyDailyReset(user) | ApplySubscriptionExpiry(user))
             await _userManager.UpdateAsync(user);
 
         return BuildUsage(user);
@@ -75,7 +80,7 @@ public class UserService : IUserService
         var user = await _userManager.FindByIdAsync(userId.ToString())
                    ?? throw new NotFoundException("Користувач");
 
-        var changed = ApplyDailyReset(user);
+        var changed = ApplyDailyReset(user) | ApplySubscriptionExpiry(user);
         var policy = RolePolicies.For(user.Role);
 
         if (user.DailyChatMessagesUsed >= policy.MaxChatMessagesPerDay)
@@ -90,7 +95,7 @@ public class UserService : IUserService
 
         // Чи дозволено новий розклад (карти) у цьому повідомленні + макс. карт за тарифом.
         var canDraw = user.DailyQuestionsUsed < policy.MaxReadingsPerDay;
-        return new MessageAllowance(canDraw, policy.MaxCards);
+        return new MessageAllowance(canDraw, policy.MaxCards, user.Role, policy.FreeMode, policy.DestinyMatrix);
     }
 
     public async Task RegisterMessageAsync(Guid userId, bool readingHappened)
@@ -103,6 +108,16 @@ public class UserService : IUserService
         if (readingHappened) user.DailyQuestionsUsed++;
 
         await _userManager.UpdateAsync(user);
+    }
+
+    /// <summary>Повертає роль на Free, якщо виданий адміном тариф прострочився. True — якщо щось змінилось.</summary>
+    private static bool ApplySubscriptionExpiry(AppUser user)
+    {
+        if (user.SubscriptionExpiresAt is not { } expires || expires > DateTime.UtcNow) return false;
+
+        user.Role = UserRole.Free;
+        user.SubscriptionExpiresAt = null;
+        return true;
     }
 
     /// <summary>Обнуляє денні лічильники, якщо настала нова доба (UTC). True — якщо щось змінилось.</summary>
@@ -130,7 +145,10 @@ public class UserService : IUserService
             ReadingsUsed = user.DailyQuestionsUsed,
             ReadingsLimit = policy.MaxReadingsPerDay,
             MaxCards = policy.MaxCards,
-            ResetsAt = resetsAt.ToString("o")
+            FreeMode = policy.FreeMode,
+            DestinyMatrix = policy.DestinyMatrix,
+            ResetsAt = resetsAt.ToString("o"),
+            SubscriptionExpiresAt = user.SubscriptionExpiresAt?.ToString("o")
         };
     }
 

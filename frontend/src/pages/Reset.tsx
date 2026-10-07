@@ -18,8 +18,10 @@ const RULES = [
 export default function Reset() {
   const [p1, setP1] = useState('')
   const [p2, setP2] = useState('')
-  const [done, setDone] = useState(false)
+  // setDone повернеться разом з ендпоінтом reset-password; поки успіху не буває
+  const [done] = useState(false)
   const [mismatch, setMismatch] = useState(false)
+  const [notReady, setNotReady] = useState(false)
 
   const passed = useMemo(() => RULES.map(r => r.test(p1)), [p1])
   const score = passed.filter(Boolean).length
@@ -35,8 +37,10 @@ export default function Reset() {
       setMismatch(true)
       return
     }
-    // TODO(backend): POST /api/auth/reset-password { token, newPassword }
-    setDone(true)
+    // TODO(backend): POST /api/auth/reset-password { token, newPassword } — після нього повернути setDone(true).
+    // Поки ендпоінта немає, не показуємо фальшивий «пароль оновлено».
+    setMismatch(false)
+    setNotReady(true)
   }
 
   return (
@@ -93,6 +97,12 @@ export default function Reset() {
                     required
                   />
                 </div>
+                {notReady && (
+                  <div className="auth-error">
+                    Скидання пароля через пошту ще в розробці. Напишіть розробнику — відновимо доступ вручну
+                    (див. <Link to="/forgot">сторінку відновлення</Link>).
+                  </div>
+                )}
                 <button type="submit" className="btn btn-primary auth-submit">
                   Зберегти пароль →
                 </button>

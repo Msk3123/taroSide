@@ -16,6 +16,15 @@ public class UserUsageDto
 
     public int MaxCards { get; set; }
 
+    /// <summary>Чи відкритий тарифом «Вільний розклад» (фронт за цим блокує чіп).</summary>
+    public bool FreeMode { get; set; }
+
+    /// <summary>Чи відкрита тарифом AI-інтерпретація Матриці Долі.</summary>
+    public bool DestinyMatrix { get; set; }
+
     /// <summary>ISO-8601 момент, коли лічильники обнуляться (наступна доба UTC).</summary>
     public string ResetsAt { get; set; } = string.Empty;
+
+    /// <summary>ISO-8601 кінець платного тарифу, виданого адміном. null — безстроково або тариф Free.</summary>
+    public string? SubscriptionExpiresAt { get; set; }
 }

@@ -24,7 +24,7 @@ export default function Home() {
           <div className="cta-row fade-up d5">
             <Link to="/login" className="btn btn-primary">Розпочати розклад</Link>
             <Link to="/register" className="btn btn-ghost">Створити акаунт</Link>
-            <Link to="/guest" className="guest-link">Спробувати як гість</Link>
+            <Link to="/guest" className="guest-link">Подивитись як гість</Link>
           </div>
 
           <div className="meta-row fade-up d6">
@@ -33,8 +33,8 @@ export default function Home() {
               <div className="l">Карт у колоді</div>
             </div>
             <div className="meta-item">
-              <span className="n">12</span>
-              <div className="l">Видів розкладу</div>
+              <span className="n">4</span>
+              <div className="l">Види розкладу</div>
             </div>
             <div className="meta-item">
               <span className="n">∞</span>

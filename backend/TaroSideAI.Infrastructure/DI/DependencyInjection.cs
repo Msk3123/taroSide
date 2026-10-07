@@ -17,6 +17,8 @@ public static class InfrastructureDі
         services.AddScoped<ISpreadRepository, SpreadRepository>();
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IAdminRepository, AdminRepository>();
+        services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
+        services.AddScoped<ISupportRepository, SupportRepository>();
 
         // Email: налаштування читаємо з секції "Email" один раз,
         // а сервіс реєструємо ЗА ІНТЕРФЕЙСОМ — щоб UserService просив IEmailSender,

@@ -10,4 +10,6 @@ public interface ICardService
     public Task<List<TarotCard>> GetAllCardsAsync();
     public Task<List<ReadingCard>> DrawRandomCardsAsync(int count);
 
+    Task<DailyCardDto> GetDailyCardAsync(Guid userId);
+
 }

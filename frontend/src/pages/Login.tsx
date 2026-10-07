@@ -83,10 +83,8 @@ export default function Login() {
             </div>
 
             <div className="auth-options">
-              <label className="auth-checkbox">
-                <input type="checkbox" />
-                <span>Запам'ятати</span>
-              </label>
+              {/* Вхід і так зберігається в браузері до виходу — фальшивий «Запам'ятати» прибрано */}
+              <span />
               <Link to="/forgot" className="auth-forgot">Забули слово?</Link>
             </div>
 

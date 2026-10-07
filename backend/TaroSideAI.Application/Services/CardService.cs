@@ -1,4 +1,5 @@
 using TaroSideAI.Application.DTOs;
+using TaroSideAI.Application.Exceptions;
 using TaroSideAI.Application.Interfaces;
 using TaroSideAI.Domain.Entities;
 
@@ -70,6 +71,40 @@ public class CardService : ICardService
         }
 
         return result;
+    } 
+    
+    public async Task<DailyCardDto> GetDailyCardAsync(Guid userId)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Вже тягнув сьогодні — віддаємо ту саму карту
+        var dailyCard = await _cardRepository.GetDailyCardAsync(userId, today);
+
+        if (dailyCard == null)
+        {
+            var drawn = await _cardRepository.GetRandomCardAsync(1);
+            if (drawn.Count == 0)
+                throw new NotFoundException("Карти в колоді");
+
+            dailyCard = await _cardRepository.AddDailyCardAsync(new DailyCard
+            {
+                UserId = userId,
+                Date = today,
+                CardId = drawn[0].Id,
+                Card = drawn[0],
+                IsReversed = Random.Shared.Next(2) == 1
+            });
+        }
+
+        return new DailyCardDto
+        {
+            Date = dailyCard.Date,
+            CardId = dailyCard.CardId,
+            NameUkr = dailyCard.Card.NameUkr,
+            Symbol = dailyCard.Card.Symbol,
+            Keywords = dailyCard.Card.Keywords,
+            IsReversed = dailyCard.IsReversed,
+            Meaning = dailyCard.IsReversed ? dailyCard.Card.ReversedMeaning : dailyCard.Card.UprightMeaning
+        };
     }
 }
-

@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import BrandMark from '../components/BrandMark'
+import { track } from '../lib/analytics'
 
-type Tier = 'free' | 'registered' | 'pro'
+/**
+ * Хто може відкрити розклад. Має збігатися з бекендом:
+ * Spread.RequiredRole (SpreadConfiguration) + ліміти RolePolicies.
+ * Гість (без акаунта) розкладів не робить узагалі — бекенд для гостей їх не має.
+ */
+type Tier = 'registered' | 'premium' | 'vip' | 'soon'
 
 interface SpreadDef {
   count: string | number
@@ -18,19 +24,40 @@ interface SpreadDef {
 const SPREADS: SpreadDef[] = [
   { count: 3, roman: 'III', label: 'Три карти', name: 'Минуле · Теперішнє · Майбутнє',
     desc: 'Базове віщування. Швидкий погляд на плин часу навколо вашого питання.',
-    dots: 3, tier: 'free', d: 'd3' },
+    dots: 3, tier: 'registered', d: 'd3' },
   { count: 5, roman: 'V', label: "П'ять карт", name: "П'ятикутник",
     desc: 'Обставини, перешкоди, поради, наслідки та підсумок ситуації.',
-    dots: 5, tier: 'registered', d: 'd4' },
+    dots: 5, tier: 'premium', d: 'd4' },
   { count: 7, roman: 'VII', label: 'Сім карт', name: 'Підкова долі',
     desc: 'Глибокий розгляд ситуації з урахуванням зовнішніх сил та скритих впливів.',
-    dots: 7, tier: 'registered', d: 'd5' },
+    dots: 7, tier: 'premium', d: 'd5' },
   { count: 12, roman: 'XII', label: 'Дванадцять карт', name: 'Колесо року',
     desc: 'Прогноз на дванадцять місяців уперед — місяць за місяцем, знак за знаком.',
-    dots: 12, tier: 'pro', d: 'd6' },
+    dots: 12, tier: 'vip', d: 'd6' },
   { count: 'inf', roman: '∞', label: 'Скільки захочете', name: 'Вільний розклад',
-    desc: 'Власні позиції, власна кількість карт. Повна свобода віщування для Pro.',
-    dots: 10, tier: 'pro', d: 'd7' },
+    desc: 'Власні позиції, власна кількість карт. Зараз у розробці — скоро з’явиться для VIP.',
+    dots: 10, tier: 'soon', d: 'd7' },
+]
+
+const BADGE: Record<Tier, string> = {
+  registered: 'Після реєстрації',
+  premium: 'Premium',
+  vip: 'VIP',
+  soon: 'Скоро',
+}
+
+const RIBBON: Record<Tier, string> = {
+  registered: 'Безкоштовно з акаунтом',
+  premium: 'Доступно в Premium',
+  vip: 'Доступно у VIP',
+  soon: 'У розробці',
+}
+
+/** Автовідповідь гостю: без акаунта бекенд розкладів не робить, тож чесно про це кажемо. */
+const GUEST_REPLY = [
+  'Привіт! Я Lunaris ☾',
+  'Поки що гості не можуть робити розклади — команда розробника якраз працює над гостьовим режимом.',
+  'Але якщо хочеш погадати вже зараз — зареєструйся: це безкоштовно, і тобі одразу відкриються 2 розклади на день на 3 карти.',
 ]
 
 /** Reusable lock chain + padlock overlay — rendered inside a locked spread card. */
@@ -68,10 +95,10 @@ function ChainOverlay() {
 }
 
 export default function Guest() {
-  const [selectedIdx, setSelectedIdx] = useState(0)
   const [lockData, setLockData] = useState<SpreadDef | null>(null)
   const [chatValue, setChatValue] = useState('')
-  const [chatHint, setChatHint] = useState<string | null>(null)
+  // Що гість написав і чи показуємо автовідповідь Lunaris
+  const [asked, setAsked] = useState<string | null>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLockData(null) }
@@ -79,23 +106,14 @@ export default function Guest() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  function onSpreadClick(s: SpreadDef, i: number) {
-    if (s.tier !== 'free') {
-      setLockData(s)
-      return
-    }
-    setSelectedIdx(i)
-  }
-
   function sendChat() {
     const v = chatValue.trim()
     if (!v) return
     setChatValue('')
-    setChatHint(`✦ Карти почули: "${v.slice(0, 40)}${v.length > 40 ? '…' : ''}"`)
+    setAsked(v)
+    // Сам текст питання не відправляємо — лише факт «гість хотів погадати» (для воронки в адмінці)
+    track('guest_message')
   }
-
-  const selected = SPREADS[selectedIdx]
-  const selLabel = `${selected.count} карти — ${selected.name}`
 
   return (
     <>
@@ -119,47 +137,40 @@ export default function Guest() {
           <div className="guest-eyebrow">Із чого почнемо</div>
           <h1>Оберіть <span className="accent">розклад</span></h1>
           <p className="lede">
-            Зосередьтеся на питанні, яке вас тривожить. Оберіть розклад, і карти
-            дадуть відповідь. Як гість, ви можете скористатися базовим розкладом
-            на три карти — цього вистачає, щоб зазирнути у час.
+            Ось які розклади є в Lunaris. Гостям вони поки недоступні — гостьовий режим
+            ще в розробці. Після безкоштовної реєстрації відкривається базовий розклад
+            на три карти, решта — у пакетах Premium і VIP.
           </p>
         </div>
 
         <div className="limits-strip fade-up d3">
           <div className="limit-item active">
             <div className="limit-tier">Гість</div>
-            <div className="limit-detail">1 розклад на 3 карти · на день</div>
+            <div className="limit-detail">Лише перегляд · розкладів немає</div>
           </div>
           <div className="limit-item">
-            <div className="limit-tier">Зареєстрований</div>
-            <div className="limit-detail">5× по 3 · 3× по 5 · 1× по 7 карт</div>
+            <div className="limit-tier">Free · з акаунтом</div>
+            <div className="limit-detail">2 розклади на день · 3 карти</div>
           </div>
           <div className="limit-item">
-            <div className="limit-tier">Pro</div>
-            <div className="limit-detail">До 20 розкладів будь-якого виду</div>
+            <div className="limit-tier">Premium</div>
+            <div className="limit-detail">7 на день · до 7 карт</div>
           </div>
-          <div className="limit-reset">Оновлення о 00:00</div>
+          <div className="limit-item">
+            <div className="limit-tier">VIP</div>
+            <div className="limit-detail">20 на день · до 12 карт</div>
+          </div>
+          <div className="limit-reset">Оновлення о 00:00 UTC</div>
         </div>
 
         <div className="spread-grid">
           {SPREADS.map((s, i) => {
-            const isSelected = i === selectedIdx && s.tier === 'free'
-            const isLocked = s.tier !== 'free'
-            const classes = [
-              'spread',
-              'fade-up',
-              s.d,
-              isSelected ? 'selected' : '',
-              isLocked ? 'locked' : '',
-            ].filter(Boolean).join(' ')
+            // Для гостя замкнене все: базовий розклад — після реєстрації, решта — тарифи
+            const classes = ['spread', 'fade-up', s.d, 'locked'].join(' ')
 
             return (
-              <div key={i} className={classes} onClick={() => onSpreadClick(s, i)}>
-                {s.tier === 'free' && <div className="spread-free">Безкоштовно</div>}
-                {s.tier === 'registered' && (
-                  <div className="lock-badge lock-badge-user">Увійти</div>
-                )}
-                {s.tier === 'pro' && <div className="lock-badge">Pro</div>}
+              <div key={i} className={classes} onClick={() => setLockData(s)}>
+                <div className={`lock-badge ${s.tier === 'registered' ? 'lock-badge-user' : ''}`}>{BADGE[s.tier]}</div>
 
                 <div className="spread-count">{s.roman}</div>
                 <div className="spread-label">{s.label}</div>
@@ -170,13 +181,8 @@ export default function Guest() {
                   {Array.from({ length: s.dots }).map((_, k) => <span key={k} />)}
                 </div>
 
-                {isLocked && <ChainOverlay />}
-                {s.tier === 'registered' && (
-                  <div className="pro-ribbon ribbon-user">Увійдіть, щоб відкрити</div>
-                )}
-                {s.tier === 'pro' && (
-                  <div className="pro-ribbon">Розблокувати в Pro</div>
-                )}
+                <ChainOverlay />
+                <div className={`pro-ribbon ${s.tier === 'registered' ? 'ribbon-user' : ''}`}>{RIBBON[s.tier]}</div>
               </div>
             )
           })}
@@ -186,12 +192,25 @@ export default function Guest() {
       {/* Bottom chat input dock */}
       <div className="chat-dock fade-up d8">
         <div className="chat-dock-inner">
+          {asked && (
+            <div className="guest-reply" role="status">
+              <button type="button" className="guest-reply-close" onClick={() => setAsked(null)} aria-label="Закрити">✕</button>
+              <div className="guest-reply-q">Ви: {asked.length > 80 ? asked.slice(0, 80) + '…' : asked}</div>
+              <div className="guest-reply-who">☾ Lunaris</div>
+              {GUEST_REPLY.map((line, i) => <p key={i}>{line}</p>)}
+              <div className="guest-reply-actions">
+                <Link to="/register" className="btn btn-primary">Зареєструватися →</Link>
+                <Link to="/login" className="btn btn-ghost">Вже маю акаунт</Link>
+              </div>
+            </div>
+          )}
           <div className="chat-input-wrap">
-            <button className="chat-plus" title="Додати">+</button>
             <input
               type="text"
               className="chat-input"
-              placeholder={chatHint ?? 'Запитайте карти про будь-що...'}
+              maxLength={500}
+              placeholder="Запитайте карти про будь-що..."
+
               value={chatValue}
               onChange={e => setChatValue(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') sendChat() }}
@@ -204,7 +223,7 @@ export default function Guest() {
             </button>
           </div>
           <div className="chat-hint">
-            Обрано: <span className="sel">{selLabel}</span>
+            Ви гість · <span className="sel">розклади відкриються після реєстрації</span>
           </div>
         </div>
       </div>
@@ -218,54 +237,32 @@ export default function Guest() {
           <div className="lock-modal-card">
             <button className="lock-close" onClick={() => setLockData(null)}>✕</button>
             <div className="auth-eyebrow">☾ Закриті врата ☾</div>
+            <h1 style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontWeight: 300, fontSize: 38, marginBottom: 14,
+            }}>
+              {lockData.tier === 'registered' && <>Зареєструйтесь, щоб <span style={{ fontStyle: 'italic', color: 'var(--gold-soft)' }}>відкрити</span></>}
+              {lockData.tier === 'premium' && <>Доступно в <span style={{ fontStyle: 'italic', color: 'var(--gold-soft)' }}>Premium</span></>}
+              {lockData.tier === 'vip' && <>Доступно у <span style={{ fontStyle: 'italic', color: 'var(--gold-soft)' }}>VIP</span></>}
+              {lockData.tier === 'soon' && <>Ще <span style={{ fontStyle: 'italic', color: 'var(--gold-soft)' }}>в розробці</span></>}
+            </h1>
+            <p style={{
+              fontSize: 14, lineHeight: 1.7, color: 'var(--ink-dim)',
+              marginBottom: 32, textWrap: 'pretty' as never,
+            }}>
+              {lockData.tier === 'registered' && <>«{lockData.name}» — розклад на {lockData.count} карти. Безкоштовний для всіх, хто створив акаунт: 2 розклади на день.</>}
+              {lockData.tier === 'premium' && <>«{lockData.name}» — розклад на {lockData.count} карт, входить у пакет Premium. Оплата на сайті поки не працює — але підписку можна отримати, написавши розробнику.</>}
+              {lockData.tier === 'vip' && <>«{lockData.name}» — розклад на {lockData.count} карт, входить у пакет VIP. Оплата на сайті поки не працює — але підписку можна отримати, написавши розробнику.</>}
+              {lockData.tier === 'soon' && <>«{lockData.name}» з власною кількістю карт і позиціями ще доробляється. Коли запрацює — він буде у пакеті VIP.</>}
+            </p>
             {lockData.tier === 'registered' ? (
-              <>
-                <h1 style={{
-                  fontFamily: "'Cormorant Garamond', serif",
-                  fontWeight: 300, fontSize: 38, marginBottom: 14,
-                }}>
-                  Увійдіть, щоб{' '}
-                  <span style={{ fontStyle: 'italic', color: 'var(--gold-soft)' }}>
-                    відкрити
-                  </span>
-                </h1>
-                <p style={{
-                  fontSize: 14, lineHeight: 1.7, color: 'var(--ink-dim)',
-                  marginBottom: 32, textWrap: 'pretty' as never,
-                }}>
-                  «{lockData.name}» — розклад на {lockData.count} карт. Доступно
-                  безкоштовно для зареєстрованих подорожників. Створіть акаунт
-                  або увійдіть, щоб зняти замок.
-                </p>
-                <Link to="/register" className="btn btn-primary auth-submit"
-                  style={{ marginBottom: 12 }}>
-                  Зареєструватися →
-                </Link>
-              </>
-            ) : (
-              <>
-                <h1 style={{
-                  fontFamily: "'Cormorant Garamond', serif",
-                  fontWeight: 300, fontSize: 38, marginBottom: 14,
-                }}>
-                  Доступ у{' '}
-                  <span style={{ fontStyle: 'italic', color: 'var(--gold-soft)' }}>
-                    Pro
-                  </span>
-                </h1>
-                <p style={{
-                  fontSize: 14, lineHeight: 1.7, color: 'var(--ink-dim)',
-                  marginBottom: 32, textWrap: 'pretty' as never,
-                }}>
-                  «{lockData.name}» — розклад на{' '}
-                  {lockData.count === 'inf' ? 'будь-яку кількість' : lockData.count}{' '}
-                  карт. Доступно лише у Pro-пакеті. Оберіть підписку, щоб зняти ланцюги.
-                </p>
-                <Link to="/pricing" className="btn btn-primary auth-submit"
-                  style={{ marginBottom: 12 }}>
-                  Обрати Pro →
-                </Link>
-              </>
+              <Link to="/register" className="btn btn-primary auth-submit" style={{ marginBottom: 12 }}>
+                Зареєструватися →
+              </Link>
+            ) : lockData.tier !== 'soon' && (
+              <Link to="/pricing" className="btn btn-primary auth-submit" style={{ marginBottom: 12 }}>
+                Як отримати {lockData.tier === 'vip' ? 'VIP' : 'Premium'} →
+              </Link>
             )}
             <button
               className="btn"
@@ -274,7 +271,7 @@ export default function Guest() {
                 display: 'block', width: '100%', textAlign: 'center', padding: 10,
               }}
             >
-              Залишитися з трьома картами
+              Закрити
             </button>
           </div>
         )}

@@ -56,11 +56,12 @@ public class ConversationsController : ControllerBase
         var conv = await _conversationService.GetConversationByIdAsync(id);
         if (conv == null || conv.UserId != userId) return NotFound();
 
-        var result = await _conversationService.ProcessUserMessageAsync(id, dto.Message, userId.Value, dto.SpreadId, ct);
+        var result = await _conversationService.ProcessUserMessageAsync(id, dto.Message, userId.Value, dto.SpreadId, dto.BirthDate, ct);
         return Ok(result);
     }
 }
 
 public record CreateConversationDto(string Title);
 
-public record SendMessageDto(string Message, int SpreadId);
+// BirthDate — необов'язкова: якщо є, оракул поєднує розклад із Матрицею Долі.
+public record SendMessageDto(string Message, int SpreadId, DateOnly? BirthDate = null);

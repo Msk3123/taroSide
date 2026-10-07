@@ -4,14 +4,19 @@ import BrandMark from '../components/BrandMark'
 import {
     ApiError,
     auth,
+    birthDateStore,
     type Conversation,
     conversationApi,
     type CurrentUser,
     type DrawnCard,
+    ROLE_RANK,
+    type Spread,
+    spreadApi,
     UNLIMITED,
     userApi,
     type UserUsage,
 } from '../lib/api'
+import {cardSvgByName} from '../lib/cardArt'
 
 
 type MsgRole = 'user' | 'oracle'
@@ -25,32 +30,29 @@ interface ChatMessage {
 
 interface MiniCard {
     pos: string
-    num: string
-    sym: string
-    name: string
+    svg: string            // лінійна SVG-карта з lib/cardArt (перевернута — повернута на 180°)
 }
 
 interface ChipDef {
     id: string
     rom: string
     label: string
-    spreadId: number       // id розкладу в БД (НЕ кількість карт!)
-    minCards?: number      // мін. ліміт карт за тарифом, щоб розклад був доступний
+    spreadId: number       // id розкладу в БД (НЕ кількість карт!); доступність — з /api/spreads
 }
 
 const CHIPS: ChipDef[] = [
     {id: 'c3', rom: 'III', label: 'Три карти', spreadId: 1},
     {id: 'c5', rom: 'V', label: "П'ять карт", spreadId: 2},
     {id: 'c7', rom: 'VII', label: 'Сім карт', spreadId: 3},
-    {id: 'c12', rom: 'XII', label: 'Колесо року', spreadId: 4, minCards: 12},
-    {id: 'cinf', rom: '∞', label: 'Вільний', spreadId: 5, minCards: 12},
+    {id: 'c12', rom: 'XII', label: 'Колесо року', spreadId: 4},
+    {id: 'cinf', rom: '∞', label: 'Вільний · скоро', spreadId: 5},
 ]
 
 /** Людська назва ролі для сайдбару/профілю. */
 const ROLE_LABEL: Record<string, string> = {
     Guest: 'Гість',
-    Free: 'Подорожник',
-    Premium: 'Pro · Оракул',
+    Free: 'Free · Подорожник',
+    Premium: 'Premium · Оракул',
     Vip: 'VIP · Містик',
     Admin: 'Адмін',
 }
@@ -84,10 +86,8 @@ function renderText(text: string) {
 /** Карти з бекенду → міні-картки для відмалювання в чаті (єдине місце мапінгу). */
 function cardsToSpread(cards: DrawnCard[]): MiniCard[] {
     return cards.map(c => ({
-        pos: `Позиція ${c.position}`,
-        num: c.isReversed ? 'перевернута' : 'пряма',
-        sym: c.symbol || '✦',
-        name: c.name,
+        pos: `Позиція ${c.position}${c.isReversed ? ' · ↓' : ''}`,
+        svg: cardSvgByName(c.name, {rev: c.isReversed}),
     }))
 }
 
@@ -119,8 +119,14 @@ function barWidth(used: number, limit: number): string {
 export default function Chat() {
     const navigate = useNavigate()
     const [user, setUser] = useState<CurrentUser | null>(null)
+    // мобільна «шухляда» з історією розкладів (на десктопі сайдбар видно завжди)
+    const [sbOpen, setSbOpen] = useState(false)
     const [usage, setUsage] = useState<UserUsage | null>(null)
     const [conversations, setConversations] = useState<Conversation[]>([])
+    const [spreads, setSpreads] = useState<Spread[]>([])
+    // Комбіноване гадання: якщо увімкнено — до запиту додається дата народження (Матриця Долі).
+    const [useMatrix, setUseMatrix] = useState(false)
+    const [birthDate, setBirthDate] = useState(birthDateStore.get())
 
     const [activeChip, setActiveChip] = useState('c3')
     const [messages, setMessages] = useState<ChatMessage[]>([WELCOME])
@@ -145,6 +151,8 @@ export default function Chat() {
             navigate('/login')
         })
         refreshUsage()
+        spreadApi.list().then(setSpreads).catch(() => { /* без розкладів відкритий лише базовий */
+        })
         conversationApi.list().then(setConversations).catch(() => { /* мовчазно */
         })
     }, [])
@@ -176,14 +184,37 @@ export default function Chat() {
         return () => clearInterval(t)
     }, [thinking])
 
-    /** Чи замкнений розклад для поточного тарифу (за лімітом карт ролі). */
+    /**
+     * Чи замкнений розклад для поточного тарифу. Ті самі три умови перевіряє й бекенд
+     * (ChatAiService), тут — лише щоб не дати обрати розклад, який усе одно не спрацює.
+     */
     function isChipLocked(chip: ChipDef): boolean {
-        if (!chip.minCards) return false   // базові розклади доступні всім
-        if (!usage) return true            // ліміти ще не завантажились — поки замкнено
-        return usage.maxCards < chip.minCards
+        if (chip.id === 'cinf') return true   // «Вільний розклад» ще не доведений — закритий для всіх
+        const sp = spreads.find(s => s.id === chip.spreadId)
+        if (!usage || !sp) return chip.spreadId !== 1   // поки не завантажилось — відкритий лише базовий
+        const rank = ROLE_RANK[usage.role as CurrentUser['role']] ?? 0
+        if (rank < sp.requiredRole) return true
+        if (sp.isFreeMode) return !usage.freeMode
+        return sp.cardCount > usage.maxCards
+    }
+
+    const matrixLocked = !usage?.destinyMatrix
+
+    function onMatrixClick() {
+        if (matrixLocked) {
+            navigate('/pricing')
+            return
+        }
+        setUseMatrix(v => !v)
+    }
+
+    function onBirthChange(v: string) {
+        setBirthDate(v)
+        birthDateStore.set(v)
     }
 
     function onChipClick(chip: ChipDef) {
+        if (chip.id === 'cinf') return        // у розробці — нікуди не ведемо
         if (isChipLocked(chip)) {
             navigate('/pricing')
             return
@@ -247,7 +278,8 @@ export default function Chat() {
             }
 
             const spreadId = selectedChip.spreadId
-            const res = await conversationApi.sendMessage(id, value, spreadId)
+            const withMatrix = useMatrix && !matrixLocked && birthDate ? birthDate : undefined
+            const res = await conversationApi.sendMessage(id, value, spreadId, withMatrix)
 
             const paragraphs = res.reply.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
             const spread = res.cards ? cardsToSpread(res.cards) : undefined
@@ -260,12 +292,13 @@ export default function Chat() {
             }])
             refreshUsage()   // оновлюємо лічильники лімітів
         } catch (e) {
-            // 429 — денний ліміт вичерпано: показуємо реальний текст від бекенду, а не загальну помилку
+            // 429 (ліміт), 403 (тариф), 400 (дата) — показуємо реальний текст від бекенду, а не загальну помилку
             const isLimit = e instanceof ApiError && e.status === 429
+            const isKnown = e instanceof ApiError && [400, 403, 429].includes(e.status)
             setMessages(prev => [...prev, {
                 role: 'oracle',
                 who: 'Lunaris · Оракул',
-                text: isLimit
+                text: isKnown
                     ? [(e as ApiError).message]
                     : ['Звʼязок із картами обірвався… Спробуйте ще раз за мить.'],
             }])
@@ -294,7 +327,9 @@ export default function Chat() {
         ['Раніше', 'earlier'],
     ]
 
-    const selectedChip = CHIPS.find(c => c.id === activeChip) ?? CHIPS[0]
+    // Якщо обраний розклад став недоступним (напр. ліміти довантажились) — повертаємось на базовий.
+    const selectedChip = CHIPS.find(c => c.id === activeChip && !isChipLocked(c)) ?? CHIPS[0]
+    const selectedSpread = spreads.find(s => s.id === selectedChip.spreadId)
     const activeConv = conversations.find(c => c.id === convId)
     const headTitle = activeConv?.title ?? 'Новий розклад'
     const roleLabel = user ? (ROLE_LABEL[user.role] ?? user.role) : '—'
@@ -307,13 +342,14 @@ export default function Chat() {
     return (
         <div className="chat-app">
             {/* SIDEBAR */}
-            <aside className="sidebar">
+            <div className={`sb-backdrop ${sbOpen ? 'on' : ''}`} onClick={() => setSbOpen(false)}/>
+            <aside className={`sidebar ${sbOpen ? 'open' : ''}`}>
                 <Link to="/" className="sb-brand">
                     <span className="sb-brand-mark"><BrandMark size={22}/></span>
                     Lunaris
                 </Link>
 
-                <button type="button" className="sb-new" onClick={startNew}>
+                <button type="button" className="sb-new" onClick={() => { startNew(); setSbOpen(false) }}>
                     Новий розклад
                     <span className="plus">+</span>
                 </button>
@@ -330,7 +366,7 @@ export default function Chat() {
                                             key={c.id}
                                             type="button"
                                             className={`sb-item ${c.id === convId ? 'active' : ''}`}
-                                            onClick={() => openConversation(c.id)}
+                                            onClick={() => { openConversation(c.id); setSbOpen(false) }}
                                         >
                                             <span className="roman">☾</span>
                                             <span className="title">{c.title}</span>
@@ -383,7 +419,7 @@ export default function Chat() {
                     </div>
 
                     {usage?.role !== 'Vip' && usage?.role !== 'Admin' && (
-                        <Link to="/pricing" className="sb-upgrade">✦ Отримати Pro</Link>
+                        <Link to="/pricing" className="sb-upgrade">✦ Отримати Premium</Link>
                     )}
 
                     <Link to="/profile" className="sb-profile">
@@ -400,10 +436,24 @@ export default function Chat() {
             <section className="chat-panel">
                 <header className="chat-head">
                     <div className="title">
-                        <span className="roman">☾</span>
+                        <button
+                        type="button"
+                        className="head-btn sb-toggle"
+                        aria-label="Історія розкладів"
+                        aria-expanded={sbOpen}
+                        onClick={() => setSbOpen(true)}
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                            <path d="M4 7h16M4 12h16M4 17h16"/>
+                        </svg>
+                    </button>
+                    <span className="roman">☾</span>
                         <div>
                             <div className="t">{headTitle}</div>
-                            <small>Минуле · Теперішнє · Майбутнє</small>
+                            <small>
+                                {selectedSpread?.name ?? 'Минуле · Теперішнє · Майбутнє'}
+                                {useMatrix && !matrixLocked && birthDate ? ' + Матриця Долі' : ''}
+                            </small>
                         </div>
                     </div>
                     <div className="chat-head-actions">
@@ -431,11 +481,9 @@ export default function Chat() {
                                                     {showSpread && m.spread && (
                                                         <div className="chat-spread">
                                                             {m.spread.map((c, ci) => (
-                                                                <div key={ci} className="mini-card">
+                                                                <div key={ci} className="mini-card ca-host">
                                                                     <div className="mc-pos">{c.pos}</div>
-                                                                    <div className="mc-num">{c.num}</div>
-                                                                    <div className="mc-sym">{c.sym}</div>
-                                                                    <div className="mc-name">{c.name}</div>
+                                                                    <div className="ca" dangerouslySetInnerHTML={{__html: c.svg}}/>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -469,17 +517,31 @@ export default function Chat() {
                     <div className="composer-inner">
                         <div className="composer-chips">
                             {CHIPS.map(c => {
+                                const locked = isChipLocked(c)
                                 const cls = [
                                     'chip',
-                                    c.id === activeChip ? 'active' : '',
-                                    isChipLocked(c) ? 'locked' : '',
+                                    c.id === selectedChip.id ? 'active' : '',
+                                    locked ? 'locked' : '',
                                 ].filter(Boolean).join(' ')
                                 return (
-                                    <button key={c.id} type="button" className={cls} onClick={() => onChipClick(c)}>
+                                    <button key={c.id} type="button" className={cls} onClick={() => onChipClick(c)}
+                                            title={c.id === 'cinf' ? 'У розробці' : locked ? 'Доступно на вищому тарифі' : undefined}>
                                         <span className="rom">{c.rom}</span> {c.label}
                                     </button>
                                 )
                             })}
+                            <button type="button"
+                                    className={['chip', 'chip-matrix', useMatrix && !matrixLocked ? 'active' : '', matrixLocked ? 'locked' : ''].filter(Boolean).join(' ')}
+                                    onClick={onMatrixClick}
+                                    title={matrixLocked ? 'Матриця Долі — пакет VIP' : 'Поєднати розклад із Матрицею Долі'}>
+                                <span className="rom">⌖</span> + Матриця
+                            </button>
+                            {useMatrix && !matrixLocked && (
+                                <input type="date" className="chip-date" value={birthDate}
+                                       min="1900-01-01" max={new Date().toISOString().slice(0, 10)}
+                                       onChange={e => onBirthChange(e.target.value)}
+                                       aria-label="Дата народження"/>
+                            )}
                         </div>
 
                         <div className="input-wrap">

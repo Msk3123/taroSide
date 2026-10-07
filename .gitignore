@@ -484,3 +484,5 @@ $RECYCLE.BIN/
 *.swp
 
 /Learning
+# personal CV files (contain email)
+CV_Maksym/

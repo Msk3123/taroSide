@@ -1,20 +1,37 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Nav from '../components/Nav'
+import { auth } from '../lib/api'
+import { track } from '../lib/analytics'
+import { TIKTOK_URL } from '../lib/links'
 
 /**
- * Сторінка тарифів за дизайн-шаблоном pricing.html.
- * Перемикач «Місяць / Рік» змінює ціну Premium і VIP (−20% при річній оплаті).
- * Розділ промокодів і поле вводу — статичний UI (бекенду промокодів ще немає),
- * CTA-кнопки ведуть на реєстрацію, бо checkout-маршруту в застосунку нема.
+ * Сторінка тарифів. Ліміти тут МАЮТЬ збігатися з бекендом — RolePolicies.For(role)
+ * і Spread.RequiredRole. Онлайн-оплати ще немає: кнопки «Купити» відкривають
+ * пояснення, як отримати тариф через розробника (він видає його в адмінці).
+ * «Скоро» — фічі, які заплановані, але в коді ще не реалізовані.
  */
 export default function Pricing() {
   const [yearly, setYearly] = useState(false)
+  // Який тариф людина хотіла купити — показуємо модалку-заглушку
+  const [buying, setBuying] = useState<'Premium' | 'VIP' | null>(null)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setBuying(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  function buy(plan: 'Premium' | 'VIP') {
+    setBuying(plan)
+    track('buy_click') // в адмінці видно, скільки людей хотіли купити
+  }
 
   const premNum = yearly ? '119' : '149'
-  const premNote = yearly ? '1 428 ₴ на рік · економія 360 ₴' : 'скасуйте будь-коли'
+  const premNote = yearly ? '1 428 ₴ на рік · економія 360 ₴' : 'планова ціна'
   const vipNum = yearly ? '303' : '379'
-  const vipNote = yearly ? '3 636 ₴ на рік · економія 912 ₴' : 'скасуйте будь-коли'
+  const vipNote = yearly ? '3 636 ₴ на рік · економія 912 ₴' : 'планова ціна'
+  const loggedIn = auth.isAuthenticated()
 
   return (
     <>
@@ -24,10 +41,14 @@ export default function Pricing() {
           <div className="pricing-eyebrow">Тарифи Lunaris</div>
           <h1>Оберіть свій <span className="accent">рівень</span></h1>
           <p className="lede">
-            Створіть акаунт, щоб робити розклади — безплатно демонстраційний доступ
-            до базових методик, вірусних фіч і триденної історії. Пакети Premium і VIP
-            відкривають усі розклади, ШІ-Тренера та Матрицю Долі.
+            Створіть акаунт — і отримаєте безкоштовні розклади на три карти щодня.
+            Premium і VIP відкривають великі розклади та більше лімітів.
           </p>
+          <div className="pricing-notice">
+            ☾ Онлайн-оплата поки не працює. Хочете Premium або VIP уже зараз —{' '}
+            <Link to="/support">напишіть розробнику</Link> або в{' '}
+            <a href={TIKTOK_URL} target="_blank" rel="noreferrer">TikTok</a>, і ми домовимось.
+          </div>
 
           <div className="billing-toggle">
             <button type="button" className={!yearly ? 'on' : ''} onClick={() => setYearly(false)}>
@@ -40,12 +61,12 @@ export default function Pricing() {
         </div>
 
         <div className="plans fade-up d2">
-          {/* FREE · ДЕМО */}
+          {/* FREE */}
           <div className="plan">
-            <div className="plan-name">Free · Демо</div>
+            <div className="plan-name">Free</div>
             <div className="plan-title">Спробувати <span className="accent">смак</span></div>
             <p className="plan-tagline">
-              Безкоштовно для всіх, хто створив акаунт. Підсадитися на звичку без ризику.
+              Безкоштовно для всіх, хто створив акаунт. Без картки й без пробного періоду.
             </p>
 
             <div className="plan-price">
@@ -58,15 +79,17 @@ export default function Pricing() {
             <div className="plan-divider" />
 
             <ul className="plan-features">
-              <li><span className="mark">✦</span> 1–2 розклади на добу</li>
-              <li><span className="mark">✦</span> Базовий аналіз на 3 карти</li>
-              <li><span className="mark">✦</span> <strong>«Режим Вечірки»</strong></li>
-              <li><span className="mark">✦</span> Швидка картка-скріншот для соцмереж</li>
-              <li><span className="mark">✦</span> Історія — останні 3 дні</li>
-              <li className="off"><span className="mark">✕</span> Складні розклади 5/7 карт</li>
+              <li><span className="mark">✦</span> <strong>2 розклади на добу</strong></li>
+              <li><span className="mark">✦</span> Розклад на 3 карти</li>
+              <li><span className="mark">✦</span> 20 повідомлень Lunaris на день</li>
+              <li><span className="mark">✦</span> Історія розмов у чаті</li>
+              <li><span className="mark">✦</span> Бібліотека карт і розрахунок Матриці Долі</li>
+              <li className="off"><span className="mark">✕</span> Розклади на 5, 7 і 12 карт</li>
             </ul>
 
-            <Link to="/register" className="btn btn-ghost plan-cta">Створити акаунт →</Link>
+            <Link to={loggedIn ? '/chat' : '/register'} className="btn btn-ghost plan-cta">
+              {loggedIn ? 'До гадання →' : 'Створити акаунт →'}
+            </Link>
           </div>
 
           {/* PREMIUM */}
@@ -74,7 +97,7 @@ export default function Pricing() {
             <div className="plan-name">Premium</div>
             <div className="plan-title">Прокачана <span className="accent">база</span></div>
             <p className="plan-tagline">
-              Для тих, хто хоче більше фану, контролю та спеціальних розкладів.
+              Для тих, хто хоче глибших розкладів і частіше питати карти.
             </p>
 
             <div className="plan-price">
@@ -87,22 +110,23 @@ export default function Pricing() {
             <div className="plan-divider" />
 
             <ul className="plan-features">
-              <li><span className="mark">✦</span> <strong>5–7 розкладів на день</strong></li>
-              <li><span className="mark">✦</span> Увесь функціонал безкоштовного тарифу</li>
-              <li><span className="mark">✦</span> Розширені розклади на 5 та 7 карт</li>
-              <li><span className="mark">✦</span> Глибший розбір життєвих ситуацій</li>
-              <li><span className="mark">✦</span> Безлімітна історія розкладів</li>
-              <li><span className="mark">✦</span> Розширені відповіді ШІ</li>
-              <li><span className="mark">✦</span> Експорт у PDF</li>
+              <li><span className="mark">✦</span> <strong>7 розкладів на день</strong></li>
+              <li><span className="mark">✦</span> Розклади на 5 і 7 карт</li>
+              <li><span className="mark">✦</span> 100 повідомлень на день</li>
+              <li><span className="mark">✦</span> Усе з тарифу Free</li>
+              <li className="soon"><span className="mark">◌</span> Експорт у PDF <span className="soon-tag">скоро</span></li>
+              <li className="soon"><span className="mark">◌</span> Розширені відповіді ШІ <span className="soon-tag">скоро</span></li>
             </ul>
 
-            <Link to="/register" className="btn btn-primary plan-cta">Отримати Premium →</Link>
+            <button type="button" className="btn btn-primary plan-cta" onClick={() => buy('Premium')}>
+              Отримати Premium →
+            </button>
           </div>
 
-          {/* VIP · ПРОФІ */}
+          {/* VIP */}
           <div className="plan featured">
             <div className="plan-featured-tag">Стратег · VIP</div>
-            <div className="plan-name">VIP · Профі</div>
+            <div className="plan-name">VIP</div>
             <div className="plan-title">Тактичний <span className="accent">стратег</span></div>
             <p className="plan-tagline">
               Для тарологів, гіків та серйозного самоаналізу. Чи для тих, хто гадає іншим.
@@ -118,119 +142,126 @@ export default function Pricing() {
             <div className="plan-divider" />
 
             <ul className="plan-features">
-              <li><span className="mark">✦</span> <strong>До 20 розкладів на день</strong></li>
-              <li><span className="mark">✦</span> Усі можливості Premium</li>
-              <li><span className="mark">✦</span> Розклади на <strong>12 карт</strong> · рік прогнозу</li>
-              <li><span className="mark">✦</span> Вільний режим</li>
-              <li><span className="mark">✦</span> <strong>Матриця Долі</strong> <span className="vip-tag">VIP</span></li>
-              <li><span className="mark">✦</span> ШІ-Тренер <span className="vip-tag">VIP</span></li>
-              <li><span className="mark">✦</span> Пріоритетна обробка</li>
+              <li><span className="mark">✦</span> <strong>20 розкладів на день</strong></li>
+              <li><span className="mark">✦</span> «Колесо року» на <strong>12 карт</strong></li>
+              <li><span className="mark">✦</span> Безліміт повідомлень</li>
+              <li><span className="mark">✦</span> <strong>Прочитання Матриці Долі</strong> від ШІ <span className="vip-tag">VIP</span></li>
+              <li><span className="mark">✦</span> Усе з тарифу Premium</li>
+              <li className="soon"><span className="mark">◌</span> Вільний розклад <span className="soon-tag">у розробці</span></li>
+              <li className="soon"><span className="mark">◌</span> ШІ-Тренер <span className="soon-tag">у розробці</span></li>
             </ul>
 
-            <Link to="/register" className="btn btn-primary plan-cta">Стати VIP →</Link>
-          </div>
-        </div>
-
-        {/* Денні ліміти */}
-        <div className="daily-limits fade-up d3">
-          <h3>Денні <em>ліміти</em></h3>
-          <p className="sub">Оновлення щодня о 00:00</p>
-          <div className="daily-grid">
-            <div className="head head-first">&nbsp;</div>
-            <div className="head">Free · Демо</div>
-            <div className="head">Premium · 149₴</div>
-            <div className="head">VIP · 379₴</div>
-
-            <div className="row-label">Розклади на день</div>
-            <div>1–2</div>
-            <div>5–7</div>
-            <div className="best">20</div>
-
-            <div className="row-label">Базові розклади (3 карти)</div>
-            <div className="best">✦</div>
-            <div className="best">✦</div>
-            <div className="best">✦</div>
-
-            <div className="row-label">Режим Вечірки (фан, іронія)</div>
-            <div className="best">✦</div>
-            <div className="best">✦</div>
-            <div className="best">✦</div>
-
-            <div className="row-label">Вірусний шеринг</div>
-            <div className="best">✦</div>
-            <div className="best">✦</div>
-            <div className="best">✦</div>
-
-            <div className="row-label">Складні розклади (5, 7 карт)</div>
-            <div className="zero">—</div>
-            <div className="best">✦</div>
-            <div className="best">✦</div>
-
-            <div className="row-label">Повні розклади (12 карт)</div>
-            <div className="zero">—</div>
-            <div className="zero">—</div>
-            <div className="best">✦</div>
-
-            <div className="row-label">Вільний режим (n карт)</div>
-            <div className="zero">—</div>
-            <div className="zero">—</div>
-            <div className="best">✦</div>
-
-            <div className="row-label">Історія розкладів</div>
-            <div>3 дні</div>
-            <div className="best">✦ безліміт</div>
-            <div className="best">✦ безліміт</div>
-
-            <div className="row-label">Матриця Долі</div>
-            <div className="zero">—</div>
-            <div className="zero">—</div>
-            <div className="best">✦</div>
-
-            <div className="row-label">ШІ-Тренер</div>
-            <div className="zero">—</div>
-            <div className="zero">—</div>
-            <div className="best">✦</div>
-
-            <div className="row-label">Пріоритетна обробка</div>
-            <div className="zero">—</div>
-            <div className="zero">—</div>
-            <div className="best">✦</div>
-          </div>
-        </div>
-
-        {/* Промокоди */}
-        <div className="promo-section fade-up d4">
-          <div className="promo-head">
-            <h3>Промокоди <em>з TikTok</em></h3>
-            <div className="sub">Гейміфіковані винагороди — не звичайні знижки</div>
-          </div>
-
-          <div className="promo-grid">
-            <div className="promo">
-              <div className="promo-tag">Secret Card Code</div>
-              <div className="promo-code">TikTok Lunaris</div>
-              <p>На нашій TikTok-сторінці ви зможете знайти промокоди. Будемо раді Вас бачити!</p>
-            </div>
-            <div className="promo">
-              <div className="promo-tag">Secret Card Code</div>
-              <div className="promo-code">TikTok Lunaris</div>
-              <p>На нашій TikTok-сторінці ви зможете знайти промокоди. Будемо раді Вас бачити!</p>
-            </div>
-            <div className="promo">
-              <div className="promo-tag">Secret Card Code</div>
-              <div className="promo-code">TikTok Lunaris</div>
-              <p>На нашій TikTok-сторінці ви зможете знайти промокоди. Будемо раді Вас бачити!</p>
-            </div>
-          </div>
-
-          <div className="promo-input-wrap">
-            <input placeholder="Введіть код з TikTok-челенджу…" />
-            <button type="button" className="btn btn-primary" style={{ padding: '12px 24px' }}>
-              Активувати
+            <button type="button" className="btn btn-primary plan-cta" onClick={() => buy('VIP')}>
+              Стати VIP →
             </button>
           </div>
         </div>
+
+        {/* Денні ліміти — ті самі числа, що в RolePolicies на бекенді */}
+        <div className="daily-limits fade-up d3">
+          <h3>Денні <em>ліміти</em></h3>
+          <p className="sub">Оновлення щодня о 00:00 UTC (02:00–03:00 за Києвом)</p>
+          <div className="daily-grid">
+            <div className="head head-first">&nbsp;</div>
+            <div className="head">Free</div>
+            <div className="head">Premium</div>
+            <div className="head">VIP</div>
+
+            <div className="row-label">Розклади на день</div>
+            <div>2</div>
+            <div>7</div>
+            <div className="best">20</div>
+
+            <div className="row-label">Повідомлення на день</div>
+            <div>20</div>
+            <div>100</div>
+            <div className="best">∞</div>
+
+            <div className="row-label">Розклад на 3 карти</div>
+            <div className="best">✦</div>
+            <div className="best">✦</div>
+            <div className="best">✦</div>
+
+            <div className="row-label">Розклади на 5 і 7 карт</div>
+            <div className="zero">—</div>
+            <div className="best">✦</div>
+            <div className="best">✦</div>
+
+            <div className="row-label">«Колесо року» (12 карт)</div>
+            <div className="zero">—</div>
+            <div className="zero">—</div>
+            <div className="best">✦</div>
+
+            <div className="row-label">Розрахунок Матриці Долі</div>
+            <div className="best">✦</div>
+            <div className="best">✦</div>
+            <div className="best">✦</div>
+
+            <div className="row-label">Прочитання Матриці від ШІ</div>
+            <div className="zero">—</div>
+            <div className="zero">—</div>
+            <div className="best">✦</div>
+
+            <div className="row-label">Вільний розклад (n карт)</div>
+            <div className="zero">—</div>
+            <div className="zero">—</div>
+            <div>скоро</div>
+          </div>
+        </div>
+
+        {/* Промокоди: бекенду ще немає — чесно кажемо, де стежити за новинами */}
+        <div className="promo-section fade-up d4">
+          <div className="promo-head">
+            <h3>Акції <em>з TikTok</em></h3>
+            <div className="sub">Промокоди на сайті з’являться разом з оплатою</div>
+          </div>
+          <div className="promo-grid promo-grid-single">
+            <div className="promo">
+              <div className="promo-tag">Слідкуйте за новинами</div>
+              <div className="promo-code">TikTok Lunaris</div>
+              <p>Там ми анонсуємо акції й розіграші підписок для перших користувачів.</p>
+              <a href={TIKTOK_URL} target="_blank" rel="noreferrer" className="btn btn-ghost">Відкрити TikTok ↗</a>
+            </div>
+          </div>
+        </div>
       </main>
+
+      {/* Заглушка купівлі */}
+      <div
+        className={`lock-modal ${buying ? 'open' : ''}`}
+        onClick={e => { if (e.target === e.currentTarget) setBuying(null) }}
+      >
+        {buying && (
+          <div className="lock-modal-card" role="dialog" aria-modal="true">
+            <button className="lock-close" onClick={() => setBuying(null)} aria-label="Закрити">✕</button>
+            <div className="auth-eyebrow">☾ {buying} ☾</div>
+            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 36, marginBottom: 14 }}>
+              Купівля поки <span style={{ fontStyle: 'italic', color: 'var(--gold-soft)' }}>недоступна</span>
+            </h1>
+            <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--ink-dim)', marginBottom: 24 }}>
+              Онлайн-оплату ми ще підключаємо. Але якщо хочете {buying} вже зараз — напишіть розробнику:
+              домовимось, і підписку буде активовано на ваш профіль раніше, ніж оплата з’явиться на сайті.
+            </p>
+            <Link
+              to={loggedIn ? '/support' : '/register'}
+              className="btn btn-primary auth-submit"
+              style={{ marginBottom: 12 }}
+            >
+              {loggedIn ? 'Написати розробнику →' : 'Створити акаунт і написати →'}
+            </Link>
+            <a href={TIKTOK_URL} target="_blank" rel="noreferrer" className="btn btn-ghost auth-submit" style={{ marginBottom: 12 }}>
+              Написати в TikTok ↗
+            </a>
+            <button
+              className="btn"
+              onClick={() => setBuying(null)}
+              style={{ display: 'block', width: '100%', textAlign: 'center', padding: 10 }}
+            >
+              Закрити
+            </button>
+          </div>
+        )}
+      </div>
     </>
   )
 }

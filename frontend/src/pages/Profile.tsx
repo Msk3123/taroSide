@@ -32,8 +32,8 @@ const TABS: { id: Tab; label: string }[] = [
 
 const ROLE_LABEL: Record<CurrentUser['role'], string> = {
   Guest: 'Гість',
-  Free: 'Подорожник',
-  Premium: 'Pro · Оракул',
+  Free: 'Free · Подорожник',
+  Premium: 'Premium · Оракул',
   Vip: 'VIP · Містик',
   Admin: 'Адмін',
 }
@@ -232,7 +232,7 @@ export default function Profile() {
               {user.role !== 'Vip' && user.role !== 'Admin' && (
                 <div className="actions">
                   <Link to="/pricing" className="btn btn-primary">
-                    Перейти на Pro →
+                    Отримати Premium →
                   </Link>
                 </div>
               )}

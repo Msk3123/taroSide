@@ -8,4 +8,3 @@ riderModule.iml
 appsettings.Development.json
 appsettings.*.Local.json
 .env
-../Learning

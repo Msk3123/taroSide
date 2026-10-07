@@ -24,6 +24,9 @@ export default function Trainer() {
                         Lunaris-Trainer — це AI-наставник, який вчить вас читати власні стани через
                         мову карт. Ви ставите питання, тлумачите першим, тренер дзеркалить вашу
                         інтуїцію. Це психологічний інструмент, а не передбачення майбутнього.
+                        <br/><br/><strong>Зараз це демо:</strong> сесію можна пройти, але дзеркало тренера
+                        складається з класичних значень карт, а не ШІ, і нічого не зберігається.
+                        Повна версія для VIP — у розробці.
                     </p>
                     <div className="t-cta-row">
                         <Link to="/trainer-session" className="btn btn-primary">Почати ментальний аудит →</Link>
@@ -33,7 +36,7 @@ export default function Trainer() {
                         <span className="t-pill">Без езотерики</span>
                         <span className="t-pill">Юнгова школа</span>
                         <span className="t-pill">Архетипи</span>
-                        <span className="t-pill">VIP · Матриця Долі</span>
+                        <span className="t-pill">Бета · демо</span>
                     </div>
                 </div>
                 <div className="t-visual fade-up d2">
@@ -149,7 +152,7 @@ export default function Trainer() {
 
             <section className="t-sec">
                 <div className="sec-eyebrow">VIP · Аналіз тижня</div>
-                <h2 className="sec-title">Тренди як <em>звіт</em></h2>
+                <h2 className="sec-title">Тренди як <em>звіт</em> <span className="soon-tag">скоро</span></h2>
                 <p className="sec-lede">
                     Раз на тиждень тренер дає вам стратегічний summary за всіма сесіями. Не «що буде»,
                     а «що повторюється і що з цим робити».
@@ -187,8 +190,8 @@ export default function Trainer() {
             <section className="t-sec">
                 <div className="t-cta">
                     <h2>Готові <em>розпочати</em> ментальний аудит?</h2>
-                    <p>Перша сесія — безкоштовна. Без реєстрації, без обіцянок «дізнатися майбутнє».
-                        Просто чесна робота з вашими станами.</p>
+                    <p>Демо-сесія відкрита для всіх, без реєстрації. Тижневі тренди, прогрес і
+                        ШІ-дзеркало з’являться в повній версії для VIP.</p>
                     <div className="row">
                         <Link to="/trainer-session" className="btn btn-primary">Почати сесію →</Link>
                         <Link to="/pricing" className="btn btn-ghost">Тарифи Premium / VIP</Link>

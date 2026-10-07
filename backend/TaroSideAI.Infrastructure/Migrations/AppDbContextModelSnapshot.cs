@@ -152,6 +152,44 @@ namespace TaroSideAI.Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("TaroSideAI.Domain.Entities.AnalyticsEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("VisitorId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AnalyticsEvents");
+                });
+
             modelBuilder.Entity("TaroSideAI.Domain.Entities.AppUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -213,6 +251,9 @@ namespace TaroSideAI.Infrastructure.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("SubscriptionExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 
@@ -254,6 +295,36 @@ namespace TaroSideAI.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Conversations");
+                });
+
+            modelBuilder.Entity("TaroSideAI.Domain.Entities.DailyCard", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CardId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsReversed")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CardId");
+
+                    b.HasIndex("UserId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("DailyCards");
                 });
 
             modelBuilder.Entity("TaroSideAI.Domain.Entities.Message", b =>
@@ -425,6 +496,36 @@ namespace TaroSideAI.Infrastructure.Migrations
                             Name = "Вільний розклад",
                             RequiredRole = 3
                         });
+                });
+
+            modelBuilder.Entity("TaroSideAI.Domain.Entities.SupportMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("FromAdmin")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("SupportMessages");
                 });
 
             modelBuilder.Entity("TaroSideAI.Domain.Entities.TarotCard", b =>
@@ -1440,6 +1541,31 @@ namespace TaroSideAI.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TaroSideAI.Domain.Entities.AnalyticsEvent", b =>
+                {
+                    b.HasOne("TaroSideAI.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("TaroSideAI.Domain.Entities.DailyCard", b =>
+                {
+                    b.HasOne("TaroSideAI.Domain.Entities.TarotCard", "Card")
+                        .WithMany()
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TaroSideAI.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Card");
+                });
+
             modelBuilder.Entity("TaroSideAI.Domain.Entities.Message", b =>
                 {
                     b.HasOne("TaroSideAI.Domain.Entities.Conversation", null)
@@ -1483,6 +1609,15 @@ namespace TaroSideAI.Infrastructure.Migrations
                     b.Navigation("Card");
 
                     b.Navigation("Reading");
+                });
+
+            modelBuilder.Entity("TaroSideAI.Domain.Entities.SupportMessage", b =>
+                {
+                    b.HasOne("TaroSideAI.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TaroSideAI.Domain.Entities.AppUser", b =>

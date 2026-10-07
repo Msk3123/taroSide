@@ -9,5 +9,6 @@ public interface IConversationService
     public Task<List<Conversation>> GetUserConversationsAsync(Guid userId);
     public Task<Conversation> GetConversationByIdAsync(Guid id);
     // Повертає текст + витягнуті карти (а не лише string).
-    public Task<ChatResultDto> ProcessUserMessageAsync(Guid conversationId, string message, Guid userId, int spreadId, CancellationToken ct );
+    // birthDate != null → комбіноване гадання (Таро + Матриця Долі).
+    public Task<ChatResultDto> ProcessUserMessageAsync(Guid conversationId, string message, Guid userId, int spreadId, DateOnly? birthDate, CancellationToken ct);
 }

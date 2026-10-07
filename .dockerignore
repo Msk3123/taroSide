@@ -1,0 +1,14 @@
+**/node_modules
+**/bin
+**/obj
+**/dist
+**/dist-check
+**/.vs
+**/.idea
+.git
+.claude
+Learning
+CV_Maksym
+# Секрети ніколи не потрапляють в образ — у проді все через змінні середовища.
+**/appsettings.Development.json
+**/*.user

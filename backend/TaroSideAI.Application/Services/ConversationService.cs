@@ -10,12 +10,15 @@ public class ConversationService : IConversationService
     private readonly IConversationRepository _repo;
     private readonly IChatAiService _aiService;
     private readonly IUserService _userService;
+    private readonly IMatrixService _matrixService;
 
     // camelCase, щоб збережений JSON карт мав той самий вигляд, що й «жива» відповідь.
     private static readonly JsonSerializerOptions JsonCamelCase =
         new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-    public ConversationService(IConversationRepository repo, IChatAiService aiService, IUserService userService)
+    public ConversationService(IConversationRepository repo, IChatAiService aiService, IUserService userService,
+        IMatrixService matrixService)
     {
+        _matrixService = matrixService;
         _repo = repo;
         _aiService = aiService;
         _userService = userService;
@@ -40,15 +43,33 @@ public class ConversationService : IConversationService
     {
         return await _repo.GetByIdAsync(id);
     }
-    public async Task<ChatResultDto> ProcessUserMessageAsync(Guid conversationId, string message, Guid userId, int spreadId, CancellationToken ct)
+    public async Task<ChatResultDto> ProcessUserMessageAsync(Guid conversationId, string message, Guid userId, int spreadId, DateOnly? birthDate, CancellationToken ct)
     {
-        
+
         var conv = await _repo.GetByIdAsync(conversationId);
         if (conv == null || conv.UserId != userId) throw new NotFoundException("Чат");
 
-       
+
         var allowance = await _userService.CheckMessageAllowanceAsync(conv.UserId);
-        
+
+        // Комбіноване гадання: Таро + Матриця Долі. Матриця — функція тарифу (VIP/Admin).
+        DestinyMatrixDto? matrix = null;
+        if (birthDate is not null)
+        {
+            if (!allowance.DestinyMatrix)
+                throw new ForbiddenException("Гадання з Матрицею Долі доступне в пакеті VIP");
+            matrix = await _matrixService.CalculateAsync(birthDate.Value);
+        }
+
+        // Історію знімаємо ДО збереження нового повідомлення: після AddMessageAsync EF
+        // (relationship fixup) додає його в conv.Messages, і воно пішло б у LLM двічі
+        // — раз в історії, раз окремо як userMessage (зайві вхідні токени).
+        var history = conv.Messages
+            .OrderBy(m => m.CreatedAt)
+            .TakeLast(10)
+            .Select(m => new ChatMessage(m.Role == "user" ? ChatRole.User : ChatRole.Assistant, m.Content))
+            .ToList();
+
         var userMsg = new Message
         {
             Id = Guid.NewGuid(),
@@ -58,14 +79,8 @@ public class ConversationService : IConversationService
             CreatedAt = DateTime.UtcNow
         };
         await _repo.AddMessageAsync(userMsg);
-        // Формуємо історію для LLM (останні 10 повідомлень)
-        var history = conv.Messages
-            .OrderBy(m => m.CreatedAt)
-            .TakeLast(10)
-            .Select(m => new ChatMessage(m.Role == "user" ? ChatRole.User : ChatRole.Assistant, m.Content))
-            .ToList();
         // LLM генерує відповідь (текст + карти)
-        var result = await _aiService.ChatAsync(message, spreadId, history, allowance.CanDraw, allowance.MaxCards, ct);
+        var result = await _aiService.ChatAsync(message, spreadId, history, allowance, matrix, ct);
         // Карти зберігаємо як JSON у самому повідомленні, щоб при повторному
         // відкритті розмови вони не зникали. camelCase — щоб формат збігався з
         // «живою» відповіддю (ChatReply.cards), яку фронт уже вміє малювати.

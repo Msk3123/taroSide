@@ -34,4 +34,19 @@ public class AdminRepository : IAdminRepository
             TotalCards = await _context.TarotCards.CountAsync()
         };
     }
+
+    public async Task<(int Conversations, int Messages, int Readings, DateTime? LastActive, int Support)> GetUserActivityAsync(Guid userId)
+    {
+        var conversations = _context.Conversations.Where(c => c.UserId == userId);
+        var messages = _context.Messages.Where(m => conversations.Any(c => c.Id == m.ConversationId));
+
+        return (
+            await conversations.CountAsync(),
+            await messages.CountAsync(),
+            await messages.CountAsync(m => m.CardsJson != null),
+            // Max по порожній множині в SQL дає NULL — тому каст у DateTime?
+            await conversations.MaxAsync(c => (DateTime?)c.UpdatedAt),
+            await _context.SupportMessages.CountAsync(m => m.UserId == userId)
+        );
+    }
 }

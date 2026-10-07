@@ -15,5 +15,9 @@ public class AppUser : IdentityUser<Guid>
     // Навігаційні властивості для EF Core
     public ICollection<Reading> Readings { get; set; } = [];
     public int DailyChatMessagesUsed { get; set; } = 0;
+
+    // До якого моменту (UTC) діє платний тариф, виданий адміном. null = безстроково.
+    // Коли термін минув — UserService сам повертає роль на Free (ліниво, при наступному зверненні).
+    public DateTime? SubscriptionExpiresAt { get; set; }
     
 }

@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { track } from './lib/analytics'
 import Corners from './components/Corners'
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -19,6 +21,9 @@ import Trainer from './pages/Trainer'
 import TrainerSession from './pages/TrainerSession'
 import Journal from './pages/Journal'
 import Reading from './pages/Reading'
+import Deck from './pages/Deck'
+import Matrix from './pages/Matrix'
+import Support from './pages/Support'
 
 /**
  * Admin page renders its own full-screen dashboard layout and
@@ -32,16 +37,30 @@ function Chrome() {
   // 404 та інші повноекранні маршрути малюють власний фон без плаваючих кутів.
   const knownPaths = ['/', '/login', '/register', '/guest', '/chat', '/pricing',
     '/library', '/admin', '/faq', '/profile', '/forgot', '/reset', '/about', '/trainer',
-    '/trainer-session', '/journal', '/reading']
+    '/trainer-session', '/journal', '/reading', '/matrix', '/deck', '/support']
   const isUnknown = !knownPaths.includes(pathname) && !pathname.startsWith('/card')
   if (isAdmin || isChat || isUnknown) return null
   return <Corners />
+}
+
+/** Шле page_view на кожну зміну маршруту (SPA не перезавантажує сторінку, тож сам сервер цього не бачить). */
+function PageTracker() {
+  const { pathname } = useLocation()
+  // StrictMode у dev запускає ефект двічі — не рахуємо той самий шлях двічі поспіль
+  const last = useRef<string | null>(null)
+  useEffect(() => {
+    if (last.current === pathname) return
+    last.current = pathname
+    track('page_view', pathname)
+  }, [pathname])
+  return null
 }
 
 export default function App() {
   return (
     <BrowserRouter>
       <Chrome />
+      <PageTracker />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
@@ -50,6 +69,8 @@ export default function App() {
         <Route path="/chat" element={<Chat />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/library" element={<Library />} />
+        <Route path="/deck" element={<Deck />} />
+        <Route path="/matrix" element={<Matrix />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/faq" element={<Faq />} />
         <Route path="/profile" element={<Profile />} />
@@ -61,6 +82,7 @@ export default function App() {
         <Route path="/journal" element={<Journal />} />
         <Route path="/reading" element={<Reading />} />
         <Route path="/card/:rom" element={<CardDetail />} />
+        <Route path="/support" element={<Support />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

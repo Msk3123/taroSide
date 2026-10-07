@@ -51,6 +51,9 @@ export default function Reading() {
             <main className="rd-main">
                 <div className="rd-head">
                     <Link to="/chat" className="rd-back">← До чатів</Link>
+                    <div className="demo-banner">
+                        ☾ Демо-сторінка: так виглядатиме окремий розклад. Експорт у PDF, «Поділитися» і нотатки — у розробці.
+                    </div>
                     <div className="rd-meta-row">
                         <span className="rd-eyebrow">Розклад · III · Минуле · Теперішнє · Майбутнє</span>
                         <span className="rd-date">14 квітня 2026 · 14:02</span>

@@ -1,7 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import BrandMark from '../components/BrandMark'
 import { api, adminApi, auth, type AdminUser, type AdminStats } from '../lib/api'
+import AdminAnalytics from '../components/admin/AdminAnalytics'
+import AdminSupport from '../components/admin/AdminSupport'
+import UserDetailsModal from '../components/admin/UserDetailsModal'
+
+type Tab = 'cards' | 'users' | 'analytics' | 'support'
+
+const CRUMBS: Record<Tab, [string, string]> = {
+  cards: ['Колода', 'Додати карту'],
+  users: ['Спільнота', 'Користувачі'],
+  analytics: ['Система', 'Аналітика'],
+  support: ['Спільнота', 'Підтримка'],
+}
 
 type ArcanaKey = 'major' | 'wands' | 'cups' | 'swords' | 'pentacles'
 
@@ -85,7 +97,14 @@ const emptyForm: UiCard = {
 const ALL_ROLES: AdminUser['role'][] = ['Guest', 'Free', 'Premium', 'Vip', 'Admin']
 
 export default function Admin() {
-  const [tab, setTab] = useState<'cards' | 'users'>('cards')
+  const [tab, setTab] = useState<Tab>('cards')
+  // Картка користувача (модалка) і з ким відкрити чат підтримки
+  const [detailsId, setDetailsId] = useState<string | null>(null)
+  const [supportUserId, setSupportUserId] = useState<string | null>(null)
+  const [supportUnread, setSupportUnread] = useState(0)
+  const onUnreadChange = useCallback((n: number) => setSupportUnread(n), [])
+  // мобільна «шухляда» з меню адмінки
+  const [sbOpen, setSbOpen] = useState(false)
   const [cards, setCards] = useState<UiCard[]>([])
   const [form, setForm] = useState<UiCard>(emptyForm)
   const [search, setSearch] = useState('')
@@ -106,6 +125,29 @@ export default function Admin() {
   }, [navigate])
 
   useEffect(() => { fetchCards() }, [])
+
+  // Бейдж «Підтримка» в сайдбарі видно з будь-якої вкладки
+  useEffect(() => {
+    adminApi.supportThreads()
+      .then(t => setSupportUnread(t.reduce((sum, x) => sum + x.unread, 0)))
+      .catch(() => { /* не критично */ })
+  }, [])
+
+  function go(t: Tab) {
+    setTab(t)
+    setSbOpen(false)
+  }
+
+  function openSupport(userId: string) {
+    setSupportUserId(userId)
+    setDetailsId(null)
+    go('support')
+  }
+
+  function logout() {
+    auth.clearToken()
+    navigate('/login')
+  }
 
   useEffect(() => {
     if (tab === 'users') {
@@ -208,53 +250,64 @@ export default function Admin() {
   return (
     <div className="admin-app">
       {/* SIDEBAR */}
-      <aside className="sidebar">
+      <div className={`sb-backdrop ${sbOpen ? 'on' : ''}`} onClick={() => setSbOpen(false)} />
+      <aside className={`sidebar ${sbOpen ? 'open' : ''}`}>
         <Link to="/" className="sb-brand">
           <span className="sb-brand-mark"><BrandMark size={22} /></span>
           <div>Lunaris <small>Admin</small></div>
         </Link>
 
         <div className="sb-group-label">Колода</div>
-        <a
-          href="#"
-          className={`sb-item ${tab === 'cards' ? 'active' : ''}`}
-          onClick={e => { e.preventDefault(); setTab('cards') }}
-        ><span className="ic">✦</span> Карти</a>
-        <a href="#" className="sb-item"><span className="ic">☾</span> Розклади</a>
-        <a href="#" className="sb-item"><span className="ic">☉</span> Тлумачення</a>
+        <button type="button" className={`sb-item ${tab === 'cards' ? 'active' : ''}`} onClick={() => go('cards')}>
+          <span className="ic">✦</span> Карти
+        </button>
 
         <div className="sb-group-label">Спільнота</div>
-        <a
-          href="#"
-          className={`sb-item ${tab === 'users' ? 'active' : ''}`}
-          onClick={e => { e.preventDefault(); setTab('users') }}
-        ><span className="ic">♁</span> Користувачі</a>
-        <a href="#" className="sb-item"><span className="ic">☿</span> Підписки</a>
-        <a href="#" className="sb-item"><span className="ic">⚖</span> Модерація</a>
+        <button type="button" className={`sb-item ${tab === 'users' ? 'active' : ''}`} onClick={() => go('users')}>
+          <span className="ic">♁</span> Користувачі й підписки
+        </button>
+        <button type="button" className={`sb-item ${tab === 'support' ? 'active' : ''}`} onClick={() => go('support')}>
+          <span className="ic">✉</span> Підтримка
+          {supportUnread > 0 && <span className="su-badge">{supportUnread}</span>}
+        </button>
 
         <div className="sb-group-label">Система</div>
-        <a href="#" className="sb-item"><span className="ic">∞</span> Аналітика</a>
-        <a href="#" className="sb-item"><span className="ic">⚙</span> Налаштування</a>
-        <Link to="/login" className="sb-item"><span className="ic">↗</span> Вихід</Link>
+        <button type="button" className={`sb-item ${tab === 'analytics' ? 'active' : ''}`} onClick={() => go('analytics')}>
+          <span className="ic">∞</span> Аналітика
+        </button>
+        <Link to="/" className="sb-item"><span className="ic">☾</span> На сайт</Link>
+        <button type="button" className="sb-item" onClick={logout}><span className="ic">↗</span> Вихід</button>
       </aside>
 
       {/* MAIN */}
       <section className="main-scroll">
         <div className="topbar">
+          <button
+            type="button"
+            className="head-btn sb-toggle"
+            aria-label="Меню адмінки"
+            aria-expanded={sbOpen}
+            onClick={() => setSbOpen(true)}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+              <path d="M4 7h16M4 12h16M4 17h16"/>
+            </svg>
+          </button>
           <div className="breadcrumb">
             Lunaris <span className="sep">›</span>
-            {tab === 'cards' ? (
-              <>Колода <span className="sep">›</span> <span className="cur">Додати карту</span></>
-            ) : (
-              <>Спільнота <span className="sep">›</span> <span className="cur">Користувачі</span></>
-            )}
+            {CRUMBS[tab][0]} <span className="sep">›</span> <span className="cur">{CRUMBS[tab][1]}</span>
           </div>
           <div className="topbar-actions">
             <span className="admin-badge">✦ Адміністратор</span>
           </div>
         </div>
 
-        {tab === 'cards' ? (
+        {tab === 'analytics' && <AdminAnalytics />}
+        {tab === 'support' && (
+          <AdminSupport key={supportUserId ?? "inbox"} initialUserId={supportUserId} onOpenUser={setDetailsId} onUnreadChange={onUnreadChange} />
+        )}
+
+        {tab === 'cards' && (
         <>
         <div className="page-head">
           <div>
@@ -422,7 +475,9 @@ export default function Admin() {
           </div>
         </div>
         </>
-        ) : (
+        )}
+
+        {tab === 'users' && (
         <>
         <div className="page-head">
           <div>
@@ -443,7 +498,7 @@ export default function Admin() {
               ({users.length})
             </span>
           </h2>
-          <div className="panel-sub">Зміна ролі застосовується одразу; сам користувач побачить її після повторного входу</div>
+          <div className="panel-sub">Натисніть на ім'я — відкриється профіль, де можна видати підписку на термін або написати людині</div>
           {status && tab === 'users' && (
             <div className={`admin-status ${status.kind}`} style={{ marginBottom: 10 }}>{status.text}</div>
           )}
@@ -461,7 +516,7 @@ export default function Admin() {
                 return (
                   <div key={u.id} className="card-row">
                     <div className="cr-sym">♁</div>
-                    <div className="cr-meta">
+                    <button type="button" className="cr-meta cr-open" onClick={() => setDetailsId(u.id)}>
                       <div className="t">
                         {u.userName}{' '}
                         {isSelf && (
@@ -470,8 +525,9 @@ export default function Admin() {
                       </div>
                       <div className="s">
                         {u.email} · сьогодні: {u.dailyChatMessagesUsed} повід. / {u.dailyQuestionsUsed} розкладів
+                        {u.subscriptionExpiresAt && ` · ${u.role} до ${new Date(u.subscriptionExpiresAt).toLocaleDateString('uk-UA')}`}
                       </div>
-                    </div>
+                    </button>
                     <select
                       className="role-select"
                       value={u.role}
@@ -500,6 +556,15 @@ export default function Admin() {
         </>
         )}
       </section>
+
+      {detailsId && (
+        <UserDetailsModal
+          userId={detailsId}
+          onClose={() => setDetailsId(null)}
+          onUpdated={upd => setUsers(prev => prev.map(x => (x.id === upd.id ? upd : x)))}
+          onWrite={openSupport}
+        />
+      )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast ?? '✦'}</div>
     </div>

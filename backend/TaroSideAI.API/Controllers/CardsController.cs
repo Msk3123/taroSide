@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TaroSideAI.API.Extensions;
 using TaroSideAI.Application.DTOs;
 using TaroSideAI.Application.Interfaces;
 
@@ -45,5 +46,17 @@ public class CardsController : ControllerBase
     {
         var cards = await _cardService.GetAllCardsAsync();
         return Ok(cards);
+    }
+
+    // GET /api/cards/daily
+    // Карта дня поточного юзера: перший запит за день її витягує, наступні — повертають ту саму
+    [Authorize]
+    [HttpGet("daily")]
+    public async Task<IActionResult> GetDailyCard()
+    {
+        var userId = User.GetUserId();
+        if (userId is null) return Unauthorized();
+        var dailyCard = await _cardService.GetDailyCardAsync(userId.Value);
+        return Ok(dailyCard);
     }
 }

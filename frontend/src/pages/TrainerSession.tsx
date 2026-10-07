@@ -1,35 +1,59 @@
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {Link} from 'react-router-dom'
 import Nav from '../components/Nav'
+import {TAROT_DATA, type MajorCard, type MinorCard, type SuitKey} from '../data/tarotData'
+import {cardSvg} from '../lib/cardArt'
 
 /**
  * Інтерактивна сесія ментального тренера (шаблон trainer-session.html).
  * 4 кроки: запит → карти → ваше тлумачення → дзеркало тренера.
- * Логіка vanilla-JS з макета переписана на React-стан. Карти/«дзеркало»
- * поки локальні-демо: окремого бекенд-ендпоінта тренера ще немає.
+ * Колода — усі 78 карт, кожна з шансом 25% випасти перевернутою.
+ * «Дзеркало» поки рахується локально зі значень карт: окремого бекенд-ендпоінта
+ * тренера ще немає. Сесії зберігаються в localStorage (lunaris-trainer-sessions).
  */
 
-interface Card {
-    n: string
-    s: string
-    name: string
+interface PoolCard {
+    card: MajorCard | MinorCard
+    suit?: SuitKey
+    rom: string
 }
 
-const POOL: Card[] = [
-    {n: 'II', s: '☾', name: 'Priestess'}, {n: 'XI', s: '⚖', name: 'Justice'},
-    {n: 'VII', s: '⚔', name: 'Chariot'}, {n: 'XVIII', s: '☾', name: 'Moon'},
-    {n: 'XVII', s: '✦', name: 'Star'}, {n: 'XIX', s: '☉', name: 'Sun'},
-    {n: 'IX', s: '⚝', name: 'Hermit'}, {n: 'XIII', s: '☠', name: 'Death'},
-    {n: 'XIV', s: '⚱', name: 'Temperance'}, {n: 'XV', s: '⛧', name: 'Devil'},
-    {n: 'XVI', s: '🗲', name: 'Tower'}, {n: 'XXI', s: '⊕', name: 'World'},
-    {n: 'I', s: '⚚', name: 'Magician'}, {n: 'IV', s: '♂', name: 'Emperor'},
+interface Drawn extends PoolCard {
+    isRev: boolean
+    svg: string
+}
+
+interface CoachResult {
+    paras: {head: string; text: string}[]
+    score: number
+    title: string
+    feedback: string
+}
+
+const POOL: PoolCard[] = [
+    ...TAROT_DATA.majorArcana.map(c => ({card: c, rom: c.rom})),
+    ...(Object.keys(TAROT_DATA.minorMeanings) as SuitKey[]).flatMap(s =>
+        TAROT_DATA.minorMeanings[s].cards.map(c => ({card: c, suit: s, rom: c.r}))),
 ]
 
 const POSITIONS: Record<number, string[]> = {
     3: ['Минуле', 'Теперішнє', 'Майбутнє'],
-    5: ['Корінь', 'Перешкода', 'Поради', 'Зовнішнє', 'Результат'],
-    7: ['Минуле', 'Теперішнє', 'Прихований вплив', 'Поради', 'Зовні', 'Очікування', 'Результат'],
+    5: ['Корінь', 'Перешкода', 'Порада', 'Зовнішнє', 'Результат'],
+    7: ['Минуле', 'Теперішнє', 'Прихований вплив', 'Порада', 'Зовні', 'Очікування', 'Результат'],
 }
+
+const METHODS = [
+    {count: 3, rom: 'III', nm: 'Три карти'},
+    {count: 5, rom: 'V', nm: "П'ять карт"},
+    {count: 7, rom: 'VII', nm: 'Сім карт'},
+]
+
+const STEPS = [
+    {n: 1, rom: 'I', lab: 'Запит'},
+    {n: 2, rom: 'II', lab: 'Карти'},
+    {n: 3, rom: 'III', lab: 'Ваше тлумачення'},
+    {n: 4, rom: 'IV', lab: 'Дзеркало'},
+]
 
 const HINTS = [
     'Що блокує мене у проекті',
@@ -39,47 +63,132 @@ const HINTS = [
 ]
 
 const DECK_SIZE = 24
+const Q_MAX = 400
+const SESSIONS_KEY = 'lunaris-trainer-sessions'
+
+const shuffled = <T, >(list: T[]) => [...list].sort(() => Math.random() - 0.5)
+
+function draw(p: PoolCard): Drawn {
+    const isRev = Math.random() < 0.25
+    return {...p, isRev, svg: cardSvg(p.card, p.suit, {rev: isRev})}
+}
+
+// Локальне «дзеркало»: позиція за позицією зі значень карт + бал за збігом ключових слів
+function localCoach(drawn: Drawn[], positions: string[], mine: string): CoachResult {
+    const lower = mine.toLowerCase()
+    const paras = drawn.map((d, i) => ({
+        head: `${positions[i]} — ${d.card.ua}${d.isRev ? ' (перевернута)' : ''}.`,
+        text: d.isRev ? (d.card.rev || d.card.up) : d.card.up,
+    }))
+    const words = drawn.flatMap(d => d.card.keywords.toLowerCase().split(' · '))
+    const hit = words.filter(w => lower.includes(w.slice(0, 5))).length
+    const namesHit = drawn.filter(d => lower.includes(d.card.ua.toLowerCase().split(' ').pop()!.slice(0, 4))).length
+    const len = Math.min(1, mine.length / 400)
+    const score = mine ? Math.round(Math.min(96, 30 + hit * 9 + namesHit * 6 + len * 25)) : 0
+    return {
+        paras,
+        score,
+        title: score >= 70 ? 'Ваша інтуїція звучить ясно' : score >= 45 ? 'Правильний напрям' : 'Є куди рости',
+        feedback: mine
+            ? `Ви торкнулися ${hit} з ${words.length} ключових тем розкладу. ` +
+              (hit < words.length / 2
+                  ? 'Спробуйте детальніше описати кожну позицію окремо.'
+                  : "Наступного разу зверніть увагу на зв'язок між картами.")
+            : 'Без власного тлумачення бал не рахується.',
+    }
+}
+
+function saveSession(q: string, mine: string, score: number, drawn: Drawn[]) {
+    try {
+        const list = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]')
+        list.unshift({
+            at: new Date().toISOString(), q, mine, score,
+            cards: drawn.map(d => ({rom: d.rom, suit: d.suit || null, ua: d.card.ua, rev: d.isRev})),
+        })
+        localStorage.setItem(SESSIONS_KEY, JSON.stringify(list.slice(0, 50)))
+    } catch {
+        // приватний режим / заблоковане сховище — сесія просто не збережеться
+    }
+}
 
 export default function TrainerSession() {
     const [step, setStep] = useState(1)
     const [count, setCount] = useState(3)
     const [mode, setMode] = useState<'random' | 'manual'>('random')
-    const [drawn, setDrawn] = useState<Card[]>([])
+    const [deckOrder, setDeckOrder] = useState(() => shuffled(POOL))
+    const [drawn, setDrawn] = useState<Drawn[]>([])
     const [picked, setPicked] = useState<Set<number>>(new Set())
     const [loading, setLoading] = useState(false)
     const [loaderMsg, setLoaderMsg] = useState('Тренер тасує колоду...')
+    const [shuffledOnce, setShuffledOnce] = useState(false)
     const [question, setQuestion] = useState('')
+    const [qError, setQError] = useState(false)
+    const [qWarn, setQWarn] = useState('')
+    const [kwOpen, setKwOpen] = useState(false)
     const [yourInterp, setYourInterp] = useState('')
     const [yourFinal, setYourFinal] = useState('')
+    const [coach, setCoach] = useState<CoachResult | null>(null)
+    const [shownScore, setShownScore] = useState(0)
 
     const positions = POSITIONS[count]
+    const complete = drawn.length === count
+
+    // Анімація кола балу: від 0 до coach.score кроком 2%
+    useEffect(() => {
+        if (!coach) return
+        let cur = 0
+        const t = window.setInterval(() => {
+            cur = Math.min(coach.score, cur + 2)
+            setShownScore(cur)
+            if (cur >= coach.score) window.clearInterval(t)
+        }, 16)
+        return () => window.clearInterval(t)
+    }, [coach])
 
     function goStep(n: number) {
         setStep(n)
         window.scrollTo({top: 0, behavior: 'smooth'})
     }
 
-    function resetDraw() {
+    function rebuildDeck() {
         setDrawn([])
         setPicked(new Set())
+        setDeckOrder(shuffled(POOL))
+        setShuffledOnce(false)
     }
 
     function selectCount(c: number) {
         setCount(c)
-        resetDraw()
+        rebuildDeck()
     }
 
     function selectMode(m: 'random' | 'manual') {
         setMode(m)
-        resetDraw()
+        rebuildDeck()
+    }
+
+    function onQuestion(v: string) {
+        setQuestion(v)
+        setQError(false)
+        setQWarn('')
+    }
+
+    function toCards() {
+        const v = question.trim()
+        if (v.length < 10) {
+            setQError(true)
+            setQWarn('Запит занадто короткий — хоча б одне речення')
+            return
+        }
+        // \b не працює з кирилицею, тому межу слова перевіряємо пробілом
+        if (/^(чи|коли|з ким)(\s|$)/i.test(v)) setQWarn('Спробуйте переформулювати через «що / як / чому»')
+        goStep(2)
     }
 
     function pickManual(i: number) {
         if (picked.has(i) || drawn.length >= count) return
-        const next = new Set(picked)
-        next.add(i)
-        setPicked(next)
-        setDrawn(prev => [...prev, POOL[Math.floor(Math.random() * POOL.length)]])
+        setPicked(prev => new Set(prev).add(i))
+        setDrawn(prev => [...prev, draw(deckOrder[i])])
     }
 
     function shuffleDraw() {
@@ -89,45 +198,50 @@ export default function TrainerSession() {
         window.setTimeout(() => {
             setLoaderMsg('Витягую символи...')
             window.setTimeout(() => {
-                const shuffled = [...POOL].sort(() => Math.random() - 0.5).slice(0, count)
-                setDrawn(shuffled)
+                setDrawn(shuffled(POOL).slice(0, count).map(draw))
                 setLoading(false)
+                setShuffledOnce(true)
             }, 900)
         }, 1100)
     }
 
     function revealCoach() {
-        setYourFinal(
-            yourInterp.trim() ||
-            '— Ви пропустили цей крок. Спробуйте знову — тренування інтуїції починається з власної спроби.'
-        )
+        const mine = yourInterp.trim()
+        setYourFinal(mine || '— Ви пропустили цей крок. Тренування інтуїції починається з власної спроби.')
+        const r = localCoach(drawn, positions, mine)
+        setShownScore(0)
+        setCoach(r)
+        saveSession(question.trim(), mine, r.score, drawn)
         goStep(4)
     }
 
     function resetSession() {
-        setStep(1)
         setCount(3)
         setMode('random')
-        resetDraw()
+        rebuildDeck()
         setQuestion('')
+        setQError(false)
+        setQWarn('')
+        setKwOpen(false)
         setYourInterp('')
         setYourFinal('')
+        setCoach(null)
+        setShownScore(0)
         setLoading(false)
+        goStep(1)
     }
 
-    const complete = drawn.length === count
     const deckStatus = mode === 'random'
         ? (complete ? '✦ Колода прийняла ваш запит' : 'Натисніть «Тасувати та витягти», коли будете готові')
-        : (complete ? '✦ Карти зібрано' : `Оберіть свідомо ${count} карт зі стопки`)
+        : (complete ? '✦ Карти зібрано' : `Оберіть свідомо ${count} карт · обрано ${drawn.length}`)
 
-    const DrawnRow = ({withTopMargin = true}: {withTopMargin?: boolean}) => (
+    const drawnRow = (
         <div className="drawn-row">
-            {drawn.map((c, i) => (
-                <div key={i} className="drawn-card" style={withTopMargin ? {marginTop: 24} : undefined}>
+            {drawn.map((d, i) => (
+                <div key={i} className="drawn-card ca-host" style={{margin: '24px 0 18px'}}>
                     <div className="pos">{positions[i] || ''}</div>
-                    <div className="num">· {c.n} ·</div>
-                    <div className="sym">{c.s}</div>
-                    <div className="n">{c.name}</div>
+                    <div className="ca" dangerouslySetInnerHTML={{__html: d.svg}}/>
+                    {d.isRev && <div className="rv">Перевернута</div>}
                 </div>
             ))}
         </div>
@@ -139,16 +253,18 @@ export default function TrainerSession() {
 
             <main className="ts-main">
                 <div className="stepper">
-                    {[
-                        {n: 1, rom: 'I', lab: 'Запит'},
-                        {n: 2, rom: 'II', lab: 'Карти'},
-                        {n: 3, rom: 'III', lab: 'Ваше тлумачення'},
-                        {n: 4, rom: 'IV', lab: 'Дзеркало'},
-                    ].map(d => (
-                        <div key={d.n} className={`step-dot ${step === d.n ? 'active' : ''} ${d.n < step ? 'done' : ''}`}>
-                            <span className="rom">{d.rom}</span><span className="lab">{d.lab}</span>
-                        </div>
-                    ))}
+                    {STEPS.map(d => {
+                        const done = d.n < step
+                        return (
+                            <div
+                                key={d.n}
+                                className={`step-dot ${step === d.n ? 'active' : ''} ${done ? 'done' : ''}`}
+                                onClick={done ? () => goStep(d.n) : undefined}
+                            >
+                                <span className="rom">{d.rom}</span><span className="lab">{d.lab}</span>
+                            </div>
+                        )
+                    })}
                 </div>
 
                 {/* STEP 1: QUESTION */}
@@ -161,15 +277,20 @@ export default function TrainerSession() {
                     </div>
 
                     <textarea
-                        className="q-input"
+                        className={`q-input ${qError ? 'err' : ''}`}
+                        maxLength={Q_MAX}
                         placeholder="Що я хочу зрозуміти? Наприклад — «Чому я знову відкладаю розмову з керівником про підвищення»…"
                         value={question}
-                        onChange={e => setQuestion(e.target.value)}
+                        onChange={e => onQuestion(e.target.value)}
                     />
+                    <div className="q-meta">
+                        <span>{qWarn && <span className="warn">{qWarn}</span>}</span>
+                        <span>{question.length} / {Q_MAX}</span>
+                    </div>
 
                     <div className="q-hints">
                         {HINTS.map(h => (
-                            <button key={h} className="q-hint" onClick={() => setQuestion(h)}>{h}</button>
+                            <button key={h} className="q-hint" onClick={() => onQuestion(h)}>{h}</button>
                         ))}
                     </div>
 
@@ -181,7 +302,7 @@ export default function TrainerSession() {
 
                     <div className="panel-actions">
                         <div className="spacer"></div>
-                        <button className="btn btn-primary" onClick={() => goStep(2)}>Перейти до карт →</button>
+                        <button className="btn btn-primary" onClick={toCards}>Перейти до карт →</button>
                     </div>
                 </div>
 
@@ -194,10 +315,10 @@ export default function TrainerSession() {
                     </div>
 
                     <div className="method-row">
-                        {[3, 5, 7].map(c => (
-                            <button key={c} className={`method-btn ${count === c ? 'on' : ''}`} onClick={() => selectCount(c)}>
-                                <span className="rom">{POSITIONS[c] ? ({3: 'III', 5: 'V', 7: 'VII'} as Record<number, string>)[c] : ''}</span>
-                                <span className="nm">{c === 3 ? 'Три карти' : c === 5 ? "П'ять карт" : 'Сім карт'}</span>
+                        {METHODS.map(m => (
+                            <button key={m.count} className={`method-btn ${count === m.count ? 'on' : ''}`} onClick={() => selectCount(m.count)}>
+                                <span className="rom">{m.rom}</span>
+                                <span className="nm">{m.nm}</span>
                             </button>
                         ))}
                     </div>
@@ -223,6 +344,7 @@ export default function TrainerSession() {
                                     <div
                                         key={i}
                                         className={`deck-back ${picked.has(i) ? 'picked' : ''}`}
+                                        style={mode === 'random' ? {cursor: 'default'} : undefined}
                                         onClick={mode === 'manual' ? () => pickManual(i) : undefined}
                                     />
                                 ))}
@@ -230,15 +352,17 @@ export default function TrainerSession() {
                         </div>
                     )}
 
-                    {!loading && <DrawnRow/>}
+                    {!loading && drawnRow}
 
                     <div className="panel-actions">
                         <button className="btn btn-ghost" onClick={() => goStep(1)}>← Назад</button>
                         <div className="spacer"></div>
-                        {mode === 'random' && !complete && (
-                            <button className="shuffle-btn" onClick={shuffleDraw}>⚄ Тасувати та витягти</button>
+                        {mode === 'random' && !loading && (
+                            <button className="shuffle-btn" onClick={shuffleDraw}>
+                                {shuffledOnce ? '↻ Перетасувати' : '⚄ Тасувати та витягти'}
+                            </button>
                         )}
-                        {complete && (
+                        {complete && !loading && (
                             <button className="btn btn-primary" onClick={() => goStep(3)}>До тлумачення →</button>
                         )}
                     </div>
@@ -253,7 +377,21 @@ export default function TrainerSession() {
                             крок тренування.</p>
                     </div>
 
-                    <DrawnRow/>
+                    {step === 3 && drawnRow}
+
+                    <div className="kw-toggle">
+                        <button className="btn btn-ghost" onClick={() => setKwOpen(o => !o)}>
+                            {kwOpen ? 'Сховати ключові слова' : 'Підказати ключові слова'}
+                        </button>
+                    </div>
+                    <div className={`kw-list ${kwOpen ? 'on' : ''}`}>
+                        {drawn.map((d, i) => (
+                            <div key={i} className="kw-item">
+                                <b>{d.card.ua}{d.isRev ? ' · ↓' : ''}</b>
+                                <span>{d.card.keywords}</span>
+                            </div>
+                        ))}
+                    </div>
 
                     <div className="interp-area">
                         <textarea
@@ -288,7 +426,7 @@ export default function TrainerSession() {
                             очевидне.</p>
                     </div>
 
-                    <DrawnRow/>
+                    {step === 4 && drawnRow}
 
                     <div className="compare-grid">
                         <div className="comp-card">
@@ -297,40 +435,38 @@ export default function TrainerSession() {
                             <div className="body">{yourFinal || '—'}</div>
                         </div>
                         <div className="comp-card gold">
-                            <div className="tag">Тренер · AI Coach</div>
+                            <div className="tag">Тренер · демо (без ШІ)</div>
                             <h3>Прочитання <em>тренера</em></h3>
                             <div className="body">
-                                <p>Запит про <em>підвищення</em> та страх розмови — це не про керівника.
-                                    Це про вашу готовність взяти на себе власну цінність.</p>
-                                <p><em>Минуле — Жриця.</em> Ви довго слухали інтуїцію всередині, мовчки
-                                    накопичували досвід. Це сила.</p>
-                                <p><em>Теперішнє — Справедливість.</em> Ви заслужили розмову. Карти прямо
-                                    кажуть: баланс на вашому боці.</p>
-                                <p><em>Майбутнє — Колісниця.</em> Дія приведе перемогу. Не уникайте, але
-                                    не нападайте — кермуйте.</p>
+                                {coach
+                                    ? coach.paras.map((p, i) => <p key={i}><em>{p.head}</em> {p.text}</p>)
+                                    : <div className="coach-wait"><i></i><i></i><i></i>Тренер читає розклад…</div>}
                             </div>
                         </div>
                     </div>
 
-                    <div className="score-row">
-                        <div className="score-circ"><span>74%</span></div>
+                    <div className={`score-row ${coach ? '' : 'pending'}`}>
+                        <div
+                            className="score-circ"
+                            style={{background: `conic-gradient(var(--gold) 0% ${shownScore}%, rgba(237,228,211,0.08) ${shownScore}% 100%)`}}
+                        >
+                            <span>{coach ? `${shownScore}%` : '—'}</span>
+                        </div>
                         <div className="score-text">
                             <div className="l">Тренувальний бал · цієї сесії</div>
-                            <h3>Ваша інтуїція звучить ясно</h3>
-                            <p>74% збіг із прочитанням тренера. Ви точно вловили тему «дозволу собі», але
-                                пропустили нюанс Колісниці — рух уже почався, його не потрібно ініціювати.</p>
+                            <h3>{coach ? coach.title : 'Тренер порівнює прочитання…'}</h3>
+                            <p>{coach?.feedback}</p>
                         </div>
                     </div>
 
                     <div className="tip-box">
                         <strong>Висновок</strong>
-                        Сесію збережено у вашому журналі. Через тиждень тренер зробить аналіз ваших
-                        трендів — які карти повторюються, які теми всередині вас наполягають на увазі.
+                        Це демо-версія: сесія ніде не зберігається, а бал рахується за збігом ключових
+                        слів карт. Повна версія з ШІ-дзеркалом і тижневими трендами — у розробці.
                     </div>
 
                     <div className="panel-actions">
                         <button className="btn btn-ghost" onClick={resetSession}>↻ Нова сесія</button>
-                        <Link to="/journal" className="btn btn-ghost">У журнал</Link>
                         <div className="spacer"></div>
                         <Link to="/trainer" className="btn btn-primary">Завершити</Link>
                     </div>

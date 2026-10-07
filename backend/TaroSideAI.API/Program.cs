@@ -143,7 +143,15 @@ builder.Services.AddSwaggerGen(c =>
 // PIPELINE
 // ──────────────────────────────────────────────
 var app = builder.Build();
-app.UseExceptionHandler(); 
+
+// У проді (Docker) застосовуємо міграції при старті — локально робимо це через dotnet ef.
+if (!app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
+}
+
+app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -151,9 +159,16 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+// Зібраний React лежить у wwwroot (див. Dockerfile) — віддаємо його тим самим сервером.
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseCors("FrontendPolicy");
 app.UseAuthentication(); // ВАЖЛИВО: спочатку Authentication, потім Authorization
 app.UseAuthorization();
 app.MapControllers();
+// Неіснуючий /api/... — чесний 404, а не index.html (інакше фронт отримає HTML замість JSON).
+app.Map("/api/{**rest}", () => Results.NotFound());
+// Маршрути React Router (/chat, /library…) — будь-який інший невідомий шлях віддає index.html.
+app.MapFallbackToFile("index.html");
 
 app.Run();

@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import Nav from '../components/Nav'
 import { TAROT_DATA } from '../data/tarotData'
+import { cardSvg } from '../lib/cardArt'
 
 /**
  * CardDetail (/card/:rom) — повна сторінка Старшого Аркану.
@@ -35,10 +36,8 @@ export default function CardDetail() {
         <Link to="/library" className="cd-back">← До бібліотеки</Link>
 
         <div className="cd-hero">
-          <div className="cd-card">
-            <div className="num">· {card.rom} ·</div>
-            <div className="sym">{card.sym}</div>
-            <div className="n">{card.en}</div>
+          <div className="cd-card ca-host">
+            <div className="ca" dangerouslySetInnerHTML={{ __html: cardSvg(card) }} />
           </div>
           <div className="cd-info">
             <div className="eyebrow">Старший Аркан · {card.rom}</div>

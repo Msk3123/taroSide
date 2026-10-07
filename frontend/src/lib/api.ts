@@ -9,7 +9,8 @@
  * Усі ендпоінти повертають JSON і кидають помилку з текстом сервера на non-2xx.
  */
 
-export const API_URL = 'http://localhost:5080'
+// У проді фронт і API на одному домені → VITE_API_URL='' (відносні шляхи /api/...).
+export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5080'
 
 const TOKEN_KEY = 'lunaris_jwt'
 const USER_KEY = 'lunaris_user'
@@ -118,7 +119,10 @@ export interface UserUsage {
   readingsUsed: number
   readingsLimit: number
   maxCards: number
+  freeMode: boolean        // чи відкритий «Вільний розклад»
+  destinyMatrix: boolean   // чи відкрите AI-прочитання Матриці Долі
   resetsAt: string
+  subscriptionExpiresAt: string | null   // кінець виданого адміном тарифу; null — безстроково / Free
 }
 
 /** .NET int.MaxValue приходить як це число — трактуємо як «безліміт». */
@@ -192,11 +196,74 @@ export const conversationApi = {
    * POST /api/conversations/{id}/messages — шле питання, чекає відповідь LLM.
    * Бекенд повертає { Reply, Cards }, ASP.NET серіалізує в camelCase → { reply, cards }.
    */
-  sendMessage: (id: string, message: string, spreadId: number) =>
+  // birthDate ('YYYY-MM-DD') — якщо передати, оракул поєднає розклад із Матрицею Долі.
+  sendMessage: (id: string, message: string, spreadId: number, birthDate?: string) =>
     api<ChatReply>(`/api/conversations/${id}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ Message: message, SpreadId: spreadId }),
+      body: JSON.stringify({ Message: message, SpreadId: spreadId, BirthDate: birthDate || null }),
     }),
+}
+
+/* -------- розклади -------- */
+
+/** Ранг ролі = числа enum UserRole на бекенді (Spread.requiredRole приходить саме числом). */
+export const ROLE_RANK: Record<CurrentUser['role'], number> = { Guest: 0, Free: 1, Premium: 2, Vip: 3, Admin: 5 }
+
+export interface Spread {
+  id: number
+  name: string
+  description: string
+  cardCount: number
+  requiredRole: number
+  isFreeMode: boolean
+}
+
+export const spreadApi = {
+  list: () => api<Spread[]>('/api/spreads'),
+}
+
+/* -------- Матриця Долі -------- */
+
+export interface MatrixPoint {
+  key: 'center' | 'top' | 'left' | 'right' | 'bottom'
+  title: string
+  arcana: number
+  cardId: number
+  nameUkr: string
+  symbol: string
+  keywords: string
+  meaning: string
+}
+
+export interface DestinyMatrix {
+  birthDate: string
+  points: MatrixPoint[]
+}
+
+export const matrixApi = {
+  /** Чистий розрахунок — без AI, доступний усім. */
+  calculate: (birthDate: string) => api<DestinyMatrix>(`/api/matrix?birthDate=${encodeURIComponent(birthDate)}`),
+
+  /** AI-прочитання (VIP/Admin), списує розклад з лімітів. */
+  reading: (birthDate: string, question?: string) =>
+    api<{ matrix: DestinyMatrix; reply: string }>('/api/matrix/reading', {
+      method: 'POST',
+      body: JSON.stringify({ BirthDate: birthDate, Question: question || null }),
+    }),
+}
+
+/** Дата народження пам'ятається в браузері, щоб не вводити щоразу (не секрет, але й не на сервері). */
+const BIRTH_KEY = 'lunaris_birthdate'
+export const birthDateStore = {
+  get(): string {
+    try { return localStorage.getItem(BIRTH_KEY) ?? '' } catch { return '' }
+  },
+  set(v: string): void {
+    try {
+      if (v) localStorage.setItem(BIRTH_KEY, v)
+      else localStorage.removeItem(BIRTH_KEY)
+    } catch { /* приватний режим */ }
+  },
 }
 
 /* -------- адмінка (усі запити вимагають роль Admin у JWT) -------- */
@@ -210,6 +277,41 @@ export interface AdminUser {
   createdAt: string
   dailyChatMessagesUsed: number
   dailyQuestionsUsed: number
+  subscriptionExpiresAt: string | null
+}
+
+/** Картка користувача в адмінці: профіль + цифри активності (без вмісту чатів). */
+export interface AdminUserDetails extends AdminUser {
+  conversationsCount: number
+  messagesCount: number
+  readingsCount: number
+  lastActiveAt: string | null
+  readingsLimit: number
+  chatMessagesLimit: number
+  maxCards: number
+  supportMessagesCount: number
+}
+
+export interface AnalyticsSummary {
+  days: number
+  visitors: number
+  pageViews: number
+  bouncedVisitors: number
+  daily: { date: string; visitors: number; pageViews: number }[]
+  topPages: { path: string; views: number; visitors: number }[]
+  funnel: { step: string; count: number }[]
+  signals: { step: string; count: number }[]
+}
+
+export interface SupportThread {
+  userId: string
+  userName: string
+  email: string
+  role: string
+  lastText: string
+  lastFromAdmin: boolean
+  lastAt: string
+  unread: number
 }
 
 /** Глобальні лічильники для дашборду адмінки. */
@@ -239,5 +341,45 @@ export const adminApi = {
 
   /** DELETE /api/admin/users/{id} — видаляє акаунт (204 No Content). */
   deleteUser: (id: string) => api<void>(`/api/admin/users/${id}`, { method: 'DELETE' }),
+
+  /** GET /api/admin/users/{id} — профіль + активність. */
+  userDetails: (id: string) => api<AdminUserDetails>(`/api/admin/users/${id}`),
+
+  /** PUT /api/admin/users/{id}/subscription — тариф на N днів; days = null → безстроково. */
+  grantSubscription: (id: string, role: 'Free' | 'Premium' | 'Vip', days: number | null) =>
+    api<AdminUser>(`/api/admin/users/${id}/subscription`, {
+      method: 'PUT',
+      body: JSON.stringify({ Role: role, Days: days }),
+    }),
+
+  /** GET /api/admin/analytics?days=N — відвідуваність і воронка. */
+  analytics: (days: number) => api<AnalyticsSummary>(`/api/admin/analytics?days=${days}`),
+
+  /** Підтримка: «вхідні», гілка юзера, відповідь. */
+  supportThreads: () => api<SupportThread[]>('/api/admin/support'),
+  supportThread: (userId: string) => api<SupportMessage[]>(`/api/admin/support/${userId}`),
+  supportReply: (userId: string, text: string) =>
+    api<SupportMessage>(`/api/admin/support/${userId}`, {
+      method: 'POST',
+      body: JSON.stringify({ Text: text }),
+    }),
+}
+
+/* -------- чат з підтримкою (сторона користувача) -------- */
+
+export interface SupportMessage {
+  id: string
+  fromAdmin: boolean
+  text: string
+  createdAt: string
+}
+
+export const supportApi = {
+  /** GET /api/support — моє листування (відкриття позначає відповіді прочитаними). */
+  thread: () => api<SupportMessage[]>('/api/support'),
+  send: (text: string) =>
+    api<SupportMessage>('/api/support', { method: 'POST', body: JSON.stringify({ Text: text }) }),
+  /** GET /api/support/unread — кількість нових відповідей від адміна. */
+  unread: () => api<number>('/api/support/unread'),
 }
 

@@ -51,8 +51,8 @@ export default function Register() {
           <div className="auth-eyebrow">☾ Новий подорожник ☾</div>
           <h1>Відкрий <span className="accent">колоду</span></h1>
           <p className="auth-sub">
-            Створіть обліковий запис, щоб зберігати свої розклади, вести журнал
-            віщувань і відкрити доступ до всіх видів розкладу.
+            Створіть обліковий запис — і отримаєте 2 безкоштовні розклади на день,
+            а вся історія розмов з Lunaris збережеться у вашому профілі.
           </p>
 
           <form onSubmit={handleSubmit}>
@@ -111,8 +111,8 @@ export default function Register() {
             <label className="auth-checkbox" style={{ margin: '8px 0 24px' }}>
               <input type="checkbox" required />
               <span>
-                Приймаю <a href="#" style={{ color: 'var(--gold-soft)' }}>Кодекс Таро</a> та
-                Політику конфіденційності
+                Розумію, що тлумачення створює ШІ — це інструмент рефлексії,
+                а не порада лікаря, юриста чи фінансиста
               </span>
             </label>
 
