@@ -1500,7 +1500,9 @@ nav {
 
 .chat-app {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  /* minmax(0, …): інакше колонка росте під найширший вміст (рядок чипів, довге слово)
+     і панель вилазить за екран — справа обрізається текст і кнопка «+» */
+  grid-template-columns: 300px minmax(0, 1fr);
   height: 100vh;
   position: relative;
   z-index: 1;
@@ -1745,6 +1747,7 @@ nav {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   position: relative;
 }
 
@@ -1958,12 +1961,15 @@ nav {
   max-width: 780px;
   margin: 0 auto;
 }
-.composer-chips {
+.composer-top {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
   flex-wrap: wrap;
+  align-items: center;
 }
+/* на десктопі чипи й дата течуть одним потоком; на телефоні чипи — окремий скрол-рядок */
+.composer-chips { display: contents; }
 .chip {
   padding: 6px 12px;
   background: transparent;
@@ -2813,7 +2819,7 @@ nav {
   .daily-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 820px) {
-  .chat-app { grid-template-columns: 1fr; }
+  .chat-app { grid-template-columns: minmax(0, 1fr); }
   .chat-head, .chat-scroll, .composer { padding-left: 20px; padding-right: 20px; }
 }
 @media (max-width: 720px) {
@@ -4232,3 +4238,31 @@ nav.site-nav.open .burger span:nth-child(3) { transform: translateY(-6px) rotate
   .su-chat-head { flex-wrap: wrap; }
 }
 .an-note { font-size: 12px; line-height: 1.6; color: var(--ink-faint); margin: 6px 0 4px; max-width: 640px; }
+
+/* ==========================================================
+   Мобільний чат — композер (фідбек 20.10)
+   ========================================================== */
+@media (max-width: 820px) {
+  .composer { padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); }
+  /* Чипи — один рядок зі скролом, а не 2–3 рядки, що з'їдають пів екрана */
+  .composer-top { display: block; margin-bottom: 8px; }
+  .composer-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 16px;
+    scrollbar-width: none;
+    margin: 0 -16px 8px;
+    padding: 2px 16px;
+  }
+  .composer-chips::-webkit-scrollbar { display: none; }
+  .composer-chips .chip { flex-shrink: 0; white-space: nowrap; scroll-snap-align: start; padding: 8px 12px; }
+  .chip-matrix { margin-left: 0; }
+  .chip-date { width: 100%; box-sizing: border-box; margin: 0 0 8px; padding: 8px 12px; }
+  .input-wrap { padding: 8px 8px 8px 16px; }
+  .composer-foot { margin-top: 6px; }
+  .composer-foot .foot-ver { display: none; }
+  .composer-foot .foot-sel { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}

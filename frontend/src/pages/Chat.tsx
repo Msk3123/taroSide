@@ -515,6 +515,7 @@ export default function Chat() {
 
                 <div className="composer">
                     <div className="composer-inner">
+                        <div className="composer-top">
                         <div className="composer-chips">
                             {CHIPS.map(c => {
                                 const locked = isChipLocked(c)
@@ -536,12 +537,15 @@ export default function Chat() {
                                     title={matrixLocked ? 'Матриця Долі — пакет VIP' : 'Поєднати розклад із Матрицею Долі'}>
                                 <span className="rom">⌖</span> + Матриця
                             </button>
-                            {useMatrix && !matrixLocked && (
-                                <input type="date" className="chip-date" value={birthDate}
-                                       min="1900-01-01" max={new Date().toISOString().slice(0, 10)}
-                                       onChange={e => onBirthChange(e.target.value)}
-                                       aria-label="Дата народження"/>
-                            )}
+                        </div>
+
+                        {/* Дата — окремим рядком: на телефоні рядок чипів скролиться горизонтально */}
+                        {useMatrix && !matrixLocked && (
+                            <input type="date" className="chip-date" value={birthDate}
+                                   min="1900-01-01" max={new Date().toISOString().slice(0, 10)}
+                                   onChange={e => onBirthChange(e.target.value)}
+                                   aria-label="Дата народження"/>
+                        )}
                         </div>
 
                         <div className="input-wrap">
@@ -563,11 +567,11 @@ export default function Chat() {
                         </div>
 
                         <div className="composer-foot">
-              <span>
+              <span className="foot-sel">
                 Обрано: <span className="sel">{selectedChip.label}</span>
                   {usage && ` · Розкладів сьогодні: ${remainingText(usage.readingsUsed, usage.readingsLimit)}`}
               </span>
-                            <span>Lunaris v1.0</span>
+                            <span className="foot-ver">Lunaris v1.0</span>
                         </div>
                     </div>
                 </div>
