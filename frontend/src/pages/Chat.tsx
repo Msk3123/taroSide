@@ -134,6 +134,9 @@ export default function Chat() {
     const [convId, setConvId] = useState<string | null>(null)  // id активної розмови
     const [thinking, setThinking] = useState(false)
     const [phraseIdx, setPhraseIdx] = useState(0)
+    // короткий тост-підтвердження (напр. «Новий розклад розпочато»)
+    const [toast, setToast] = useState<string | null>(null)
+    const toastTimer = useRef<number | undefined>(undefined)
     const taRef = useRef<HTMLTextAreaElement | null>(null)
     const scrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -222,10 +225,19 @@ export default function Chat() {
         setActiveChip(chip.id)
     }
 
-    /** Новий розклад — чистимо активну розмову. */
+    function showToast(text: string) {
+        setToast(text)
+        window.clearTimeout(toastTimer.current)
+        toastTimer.current = window.setTimeout(() => setToast(null), 2200)
+    }
+
+    /** Новий розклад — чистимо активну розмову. Видимий відгук навіть якщо чат уже порожній. */
     function startNew() {
         setConvId(null)
         setMessages([WELCOME])
+        setInput('')
+        showToast('Новий розклад розпочато')
+        taRef.current?.focus()
     }
 
     /** Відкрити збережену розмову — підвантажуємо її повідомлення з бекенду. */
@@ -457,7 +469,8 @@ export default function Chat() {
                         </div>
                     </div>
                     <div className="chat-head-actions">
-                        <button className="head-btn" title="Новий розклад" onClick={startNew}>
+                        <button type="button" className="head-btn" title="Новий розклад" aria-label="Новий розклад"
+                                onClick={startNew}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
                                 <path d="M12 5v14M5 12h14"/>
                             </svg>
@@ -512,6 +525,8 @@ export default function Chat() {
                         )}
                     </div>
                 </div>
+
+                {toast && <div className="chat-toast" role="status">{toast}</div>}
 
                 <div className="composer">
                     <div className="composer-inner">
