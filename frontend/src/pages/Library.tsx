@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import BrandMark from '../components/BrandMark'
+import BackLink from '../components/BackLink'
 import { TAROT_DATA, type MajorCard, type MinorCard, type SuitKey } from '../data/tarotData'
 import { cardSvg } from '../lib/cardArt'
 
@@ -173,6 +174,7 @@ export default function Library() {
 
         {/* MAIN */}
         <section className="main-scroll" ref={scrollRef}>
+          <BackLink className="lib-back" />
           <div className="topbar">
             <div className="breadcrumb">
               Lunaris <span className="sep">›</span> Бібліотека <span className="sep">›</span>{' '}

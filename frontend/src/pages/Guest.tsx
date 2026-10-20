@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import BrandMark from '../components/BrandMark'
+import BackLink from '../components/BackLink'
 import { track } from '../lib/analytics'
 
 /**
@@ -131,6 +132,7 @@ export default function Guest() {
           <Link to="/login" className="btn">Увійти</Link>
         </div>
       </nav>
+      <BackLink />
 
       <main className="guest-main">
         <div className="guest-header fade-up d2">

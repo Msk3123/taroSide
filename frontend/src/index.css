@@ -4341,3 +4341,33 @@ nav.site-nav.open .burger span:nth-child(3) { transform: translateY(-6px) rotate
   .chat-head .title { flex: 1; }
   .chat-head .title > div { min-width: 0; }
 }
+
+/* ---------- «← Назад» під навбаром ---------- */
+.back-row {
+  position: relative;
+  z-index: 5;
+  padding: 0 56px;
+  margin-top: -12px;
+}
+.back-link {
+  min-height: 44px;
+  padding: 0 4px;
+  background: transparent;
+  border: none;
+  color: var(--ink-dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.25s ease;
+}
+.back-link:hover { color: var(--gold-soft); }
+@media (max-width: 1500px) { .back-row { padding: 0 32px; } }
+@media (max-width: 960px)  { .back-row { padding: 0 24px; } }
+@media (max-width: 640px)  { .back-row { padding: 0 16px; margin-top: -8px; } }
+/* Бібліотека: свій лейаут без Nav — «назад» над топбаром/мобільними вкладками */
+.back-row.lib-back { margin-top: 0; padding: 6px 44px 0; }
+@media (max-width: 880px) { .back-row.lib-back { padding: 4px 20px 0; } }
+.lib-app .mobile-nav { scrollbar-width: none; }
+.lib-app .mobile-nav::-webkit-scrollbar { display: none; }

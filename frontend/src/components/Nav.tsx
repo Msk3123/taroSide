@@ -1,10 +1,12 @@
 import {useEffect, useState} from 'react'
-import {Link} from 'react-router-dom'
+import {Link, useLocation} from 'react-router-dom'
 import BrandMark from './BrandMark'
+import BackLink from './BackLink'
 import {auth, supportApi} from '../lib/api'
 import {useLogout} from '../hooks/useLogout'
 
 export function Nav() {
+    const {pathname} = useLocation()
     const loggedIn = auth.isAuthenticated()
     const isAdmin = auth.getUser()?.role === 'Admin'
     // мобільне меню (бургер); на десктопі ігнорується — кнопки видно завжди
@@ -20,6 +22,7 @@ export function Nav() {
     const handleLogout = useLogout()
 
     return (
+        <>
         <nav className={`site-nav${open ? ' open' : ''}`}>
             <Link to="/" className="brand">
                 <BrandMark size={28}/>
@@ -60,6 +63,9 @@ export function Nav() {
                 )}
             </div>
         </nav>
+        {/* на головній «назад» нема куди */}
+        {pathname !== '/' && <BackLink/>}
+        </>
     )
 }
 
