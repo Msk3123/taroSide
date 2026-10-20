@@ -20,4 +20,7 @@ public class ChatResultDto
 {
     public string Reply { get; set; } = string.Empty;
     public List<DrawnCardDto> Cards { get; set; } = new();
+
+    /// <summary>Чи рахував оракул Матрицю Долі / сумісність через інструмент (рахується як розклад).</summary>
+    public bool MatrixUsed { get; set; }
 }

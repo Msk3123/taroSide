@@ -15,4 +15,7 @@ public interface IChatAiService
 
     /// <summary>Текстове прочитання Матриці Долі (без інструментів і без карт).</summary>
     Task<string> InterpretMatrixAsync(DestinyMatrixDto matrix, string? question, CancellationToken ct);
+
+    /// <summary>Текстове прочитання сумісності пари за Матрицею Долі.</summary>
+    Task<string> InterpretCompatibilityAsync(CompatibilityDto compatibility, string? question, CancellationToken ct);
 }

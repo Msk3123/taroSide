@@ -100,8 +100,8 @@ public class ConversationService : IConversationService
         };
         await _repo.AddMessageAsync(assistantMsg);
 
-        // Фіксуємо використання: +1 повідомлення, +1 розклад якщо випали карти.
-        await _userService.RegisterMessageAsync(conv.UserId, result.Cards.Count > 0);
+        // Фіксуємо використання: +1 повідомлення, +1 розклад якщо випали карти або рахувалась матриця.
+        await _userService.RegisterMessageAsync(conv.UserId, result.Cards.Count > 0 || result.MatrixUsed);
 
         return result;
     }
