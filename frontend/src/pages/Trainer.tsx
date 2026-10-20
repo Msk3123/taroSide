@@ -16,6 +16,12 @@ export default function Trainer() {
         <>
             <Nav/>
 
+            <div className="demo-banner trainer-banner" role="note">
+                <strong>Тренер у розробці.</strong> Повна версія з ШІ ще не запущена — нижче демо.
+                Хочеш дізнатися першою/першим, коли запустимо?{' '}
+                <Link to="/support">Напиши нам у підтримку →</Link>
+            </div>
+
             <section className="t-hero">
                 <div className="fade-up d1">
                     <div className="t-eyebrow">AI Mental Coach · Lunaris</div>

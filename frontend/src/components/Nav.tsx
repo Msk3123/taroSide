@@ -41,7 +41,7 @@ export function Nav() {
             <div className="nav-links" onClick={() => setOpen(false)}>
                 <Link to="/library" className="btn">Бібліотека</Link>
                 <Link to="/matrix" className="btn">Матриця</Link>
-                <Link to="/trainer" className="btn">Тренер</Link>
+                <Link to="/trainer" className="btn">Тренер<span className="soon-tag nav-soon">скоро</span></Link>
                 <Link to="/pricing" className="btn">Пакети</Link>
                 <Link to="/faq" className="btn">FAQ</Link>
                 {loggedIn ? (
