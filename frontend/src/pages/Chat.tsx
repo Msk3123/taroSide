@@ -58,6 +58,14 @@ const ROLE_LABEL: Record<string, string> = {
     Admin: 'Адмін',
 }
 
+/** Короткий бейдж тарифу в хедері чату — щоб було видно, чому відкриті ті чи інші розклади. */
+const ROLE_BADGE: Record<string, string> = {Free: 'Free', Premium: 'Premium', Vip: 'VIP', Admin: 'Admin'}
+
+/** «Доступно в Premium» / «Доступно у VIP» за рангом ролі розкладу. */
+function tierHint(requiredRole: number): string {
+    return requiredRole >= ROLE_RANK.Vip ? 'Доступно у VIP' : 'Доступно в Premium'
+}
+
 /** Фрази, що крутяться по колу, поки LLM генерує відповідь. */
 const THINKING_PHRASES = [
     'Lunaris обдумує…',
@@ -136,6 +144,8 @@ export default function Chat() {
     const [convId, setConvId] = useState<string | null>(null)  // id активної розмови
     const [thinking, setThinking] = useState(false)
     const [phraseIdx, setPhraseIdx] = useState(0)
+    // пояснення після тапу по заблокованому чипу (на телефоні немає hover-тултіпів)
+    const [lockHint, setLockHint] = useState<string | null>(null)
     // короткий тост-підтвердження (напр. «Новий розклад розпочато»)
     const [toast, setToast] = useState<string | null>(null)
     const toastTimer = useRef<number | undefined>(undefined)
@@ -207,10 +217,18 @@ export default function Chat() {
 
     function onMatrixClick() {
         if (matrixLocked) {
-            navigate('/pricing')
+            setLockHint('Матриця Долі в чаті — доступно у VIP')
             return
         }
+        setLockHint(null)
         setUseMatrix(v => !v)
+    }
+
+    /** Чому чип закритий — той самий текст для тултіпа (десктоп) і підказки після тапу (телефон). */
+    function lockReason(chip: ChipDef): string {
+        if (chip.id === 'cinf') return 'Вільний розклад ще в розробці'
+        const sp = spreads.find(s => s.id === chip.spreadId)
+        return tierHint(sp?.requiredRole ?? ROLE_RANK.Premium)
     }
 
     function onBirthChange(v: string) {
@@ -219,11 +237,11 @@ export default function Chat() {
     }
 
     function onChipClick(chip: ChipDef) {
-        if (chip.id === 'cinf') return        // у розробці — нікуди не ведемо
         if (isChipLocked(chip)) {
-            navigate('/pricing')
+            setLockHint(chip.id === 'cinf' ? lockReason(chip) : `${chip.label} — ${lockReason(chip).replace(/^Д/, 'д')}`)
             return
         }
+        setLockHint(null)
         setActiveChip(chip.id)
     }
 
@@ -478,6 +496,12 @@ export default function Chat() {
                         </div>
                     </div>
                     <div className="chat-head-actions">
+                        {usage && ROLE_BADGE[usage.role] && (
+                            <Link to="/pricing" className={`role-badge role-${usage.role.toLowerCase()}`}
+                                  title="Ваш тариф">
+                                {ROLE_BADGE[usage.role]}
+                            </Link>
+                        )}
                         <button type="button" className="head-btn" title="Новий розклад" aria-label="Новий розклад"
                                 onClick={startNew}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
@@ -539,6 +563,13 @@ export default function Chat() {
 
                 <div className="composer">
                     <div className="composer-inner">
+                        {lockHint && (
+                            <div className="chip-hint" role="status">
+                                <span>⚿ {lockHint}</span>
+                                {!lockHint.includes('розробці') && <Link to="/pricing">Пакети →</Link>}
+                                <button type="button" aria-label="Закрити" onClick={() => setLockHint(null)}>×</button>
+                            </div>
+                        )}
                         <div className="composer-top">
                         <div className="composer-chips">
                             {CHIPS.map(c => {
@@ -550,7 +581,7 @@ export default function Chat() {
                                 ].filter(Boolean).join(' ')
                                 return (
                                     <button key={c.id} type="button" className={cls} onClick={() => onChipClick(c)}
-                                            title={c.id === 'cinf' ? 'У розробці' : locked ? 'Доступно на вищому тарифі' : undefined}>
+                                            title={locked ? lockReason(c) : undefined}>
                                         <span className="rom">{c.rom}</span> {c.label}
                                     </button>
                                 )
@@ -558,7 +589,7 @@ export default function Chat() {
                             <button type="button"
                                     className={['chip', 'chip-matrix', useMatrix && !matrixLocked ? 'active' : '', matrixLocked ? 'locked' : ''].filter(Boolean).join(' ')}
                                     onClick={onMatrixClick}
-                                    title={matrixLocked ? 'Матриця Долі — пакет VIP' : 'Поєднати розклад із Матрицею Долі'}>
+                                    title={matrixLocked ? 'Доступно у VIP' : 'Поєднати розклад із Матрицею Долі'}>
                                 <span className="rom">⌖</span> + Матриця
                             </button>
                         </div>
