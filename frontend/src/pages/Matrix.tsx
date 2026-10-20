@@ -118,7 +118,7 @@ export default function Matrix() {
                 {matrix && (
                     <div className="mx-layout fade-up d3">
                         <div className="mx-stage">
-                            <svg viewBox="0 0 1000 1000" role="img" aria-label="Октаграма Матриці Долі">
+                            <svg viewBox="50 50 900 900" role="img" aria-label="Октаграма Матриці Долі">
                                 <polygon points="500,130 870,500 500,870 130,500" fill="none" stroke="#c9a24a" strokeWidth="2" opacity="0.7"/>
                                 <polygon points="238,238 762,238 762,762 238,762" fill="none" stroke="#c9a24a" strokeWidth="1.5" opacity="0.35"/>
                                 <line x1="500" y1="130" x2="500" y2="870" stroke="#c9a24a" strokeWidth="0.8" opacity="0.25"/>

@@ -145,7 +145,7 @@ export default function Pricing() {
               <li><span className="mark">✦</span> <strong>20 розкладів на день</strong></li>
               <li><span className="mark">✦</span> «Колесо року» на <strong>12 карт</strong></li>
               <li><span className="mark">✦</span> Безліміт повідомлень</li>
-              <li><span className="mark">✦</span> <strong>Прочитання Матриці Долі</strong> від ШІ <span className="vip-tag">VIP</span></li>
+              <li><span className="mark">✦</span> <strong>Прочитання Матриці Долі</strong> <span className="vip-tag">VIP</span></li>
               <li><span className="mark">✦</span> Усе з тарифу Premium</li>
               <li className="soon"><span className="mark">◌</span> Вільний розклад <span className="soon-tag">у розробці</span></li>
               <li className="soon"><span className="mark">◌</span> ШІ-Тренер <span className="soon-tag">у розробці</span></li>
@@ -197,7 +197,7 @@ export default function Pricing() {
             <div className="best">✦</div>
             <div className="best">✦</div>
 
-            <div className="row-label">Прочитання Матриці від ШІ</div>
+            <div className="row-label">Прочитання Матриці Долі</div>
             <div className="zero">—</div>
             <div className="zero">—</div>
             <div className="best">✦</div>

@@ -2572,7 +2572,7 @@ nav {
 .lib-app .breadcrumb .sep { color: var(--border); margin: 0 10px; }
 .lib-app .breadcrumb .cur { color: var(--gold-soft); }
 
-.lib-app .doc { padding: 44px 44px 80px; max-width: 1060px; }
+.lib-app .doc { padding: 44px 44px 80px; max-width: 1360px; margin: 0 auto; }
 .lib-app .doc-eyebrow {
   display: inline-flex; align-items: center; gap: 14px;
   font-family: 'JetBrains Mono', monospace; font-size: 11px;
@@ -2600,7 +2600,7 @@ nav {
   letter-spacing: 0.24em; text-transform: uppercase;
   color: var(--gold); margin-bottom: 22px;
 }
-.lib-app .doc p { font-size: 15px; line-height: 1.85; color: var(--ink-dim); margin-bottom: 16px; text-wrap: pretty; }
+.lib-app .doc p { max-width: 820px; font-size: 15px; line-height: 1.85; color: var(--ink-dim); margin-bottom: 16px; text-wrap: pretty; }
 .lib-app .doc p em { color: var(--gold-soft); font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 1.1em; }
 
 .lib-app .panel {
@@ -2630,17 +2630,18 @@ nav {
 .lib-app .method-use { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 14px; color: var(--gold-soft); border-top: 1px solid var(--border-soft); padding-top: 12px; }
 
 /* Matrix of Destiny */
-.lib-app .matrix-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 32px; align-items: start; }
+.lib-app .matrix-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(340px, 1fr); gap: 32px; align-items: start; }
 .lib-app .matrix-stage {
   position: relative; padding: 24px;
   background: radial-gradient(circle at 50% 45%, rgba(58,31,74,0.5), rgba(10,8,18,0.6) 70%);
   border: 1px solid var(--border-soft);
 }
-.lib-app .matrix-stage svg { width: 100%; height: auto; display: block; }
+.lib-app .matrix-stage svg { width: 100%; max-width: 620px; margin: 0 auto; height: auto; display: block; }
 .lib-app .mx-node { cursor: pointer; transition: all 0.3s ease; }
 .lib-app .mx-node circle { transition: all 0.3s ease; }
-.lib-app .mx-node:hover circle.dot, .lib-app .mx-node.on circle.dot { fill: var(--gold-soft); r: 21; }
-.lib-app .mx-node:hover circle.halo, .lib-app .mx-node.on circle.halo { opacity: 0.5; }
+.lib-app .mx-node:hover circle.dot, .lib-app .mx-node.on circle.dot { fill: var(--gold-soft); }
+.lib-app .mx-node:hover circle.dot[r="19"], .lib-app .mx-node.on circle.dot[r="19"] { r: 21; }
+.lib-app .mx-node:hover circle.mx-halo, .lib-app .mx-node.on circle.mx-halo { opacity: 0.5; }
 .lib-app .mx-node text { pointer-events: none; }
 
 .lib-app .zones { display: flex; flex-direction: column; gap: 12px; }
@@ -3756,7 +3757,7 @@ section.t-sec { max-width: 1200px; margin: 0 auto; padding: 60px 56px; }
 }
 
 /* ============ Матриця Долі (/matrix) ============ */
-.mx-main { max-width: 1100px; margin: 0 auto; padding: 32px 40px 80px; }
+.mx-main { max-width: 1240px; margin: 0 auto; padding: 32px 40px 80px; }
 .mx-form { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 28px; }
 .mx-form label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-dim); }
 .mx-form input, .mx-reading textarea {
@@ -3764,8 +3765,13 @@ section.t-sec { max-width: 1200px; margin: 0 auto; padding: 60px 56px; }
   padding: 10px 14px; border-radius: 4px; font: inherit; color-scheme: dark;
 }
 .mx-error { color: #e08a7a; margin-bottom: 20px; }
-.mx-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 32px; align-items: start; }
-.mx-stage svg { width: 100%; height: auto; display: block; }
+.mx-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 420px); gap: 32px; align-items: start; }
+.mx-stage {
+  padding: 16px;
+  background: radial-gradient(circle at 50% 45%, rgba(58,31,74,0.5), rgba(10,8,18,0.6) 70%);
+  border: 1px solid var(--border-soft);
+}
+.mx-stage svg { width: 100%; max-width: 640px; margin: 0 auto; height: auto; display: block; }
 .mx-node { cursor: pointer; }
 .mx-node circle, .mx-node text { transition: all 0.25s ease; }
 .mx-points { display: flex; flex-direction: column; gap: 8px; }
@@ -3792,7 +3798,19 @@ section.t-sec { max-width: 1200px; margin: 0 auto; padding: 60px 56px; }
 .mx-reply em { color: var(--gold-soft); }
 @media (max-width: 860px) {
   .mx-main { padding: 24px 16px 60px; }
-  .mx-layout { grid-template-columns: 1fr; }
+  .mx-layout { grid-template-columns: 1fr; gap: 20px; }
+}
+@media (max-width: 640px) {
+  .mx-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+  .mx-form label { grid-column: 1 / -1; }
+  .mx-form input { min-width: 0; width: 100%; box-sizing: border-box; }
+  .mx-form .btn { padding: 12px 14px; }
+  .mx-stage { padding: 4px; }
+  .mx-point { padding: 10px 12px; gap: 10px; }
+  .mx-rom { font-size: 22px; min-width: 40px; }
+  .mx-reading { margin-top: 36px; }
+  .mx-reading h2 { font-size: 28px; }
+  .mx-actions .btn { flex: 1 1 100%; justify-content: center; }
 }
 
 /* ==========================================================

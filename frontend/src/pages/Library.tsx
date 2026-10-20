@@ -256,22 +256,22 @@ export default function Library() {
                       <line x1="769" y1="231" x2="231" y2="769" stroke="#c9a24a" strokeWidth="0.8" opacity="0.2" />
 
                       <g {...zoneProps('purpose')}>
-                        <circle className="halo" cx="500" cy="120" r="46" fill="#c9a24a" opacity="0" />
+                        <circle className="mx-halo" cx="500" cy="120" r="46" fill="#c9a24a" opacity="0" />
                         <circle className="dot" cx="500" cy="120" r="19" fill="#c9a24a" />
                         <text x="500" y="66" textAnchor="middle" fill="#e8c678" fontFamily="'Cormorant Garamond',serif" fontStyle="italic" fontSize="34">Призначення</text>
                       </g>
                       <g {...zoneProps('karma')}>
-                        <circle className="halo" cx="500" cy="880" r="46" fill="#c9a24a" opacity="0" />
+                        <circle className="mx-halo" cx="500" cy="880" r="46" fill="#c9a24a" opacity="0" />
                         <circle className="dot" cx="500" cy="880" r="19" fill="#c9a24a" />
                         <text x="500" y="952" textAnchor="middle" fill="#e8c678" fontFamily="'Cormorant Garamond',serif" fontStyle="italic" fontSize="34">Кармічний хвіст</text>
                       </g>
                       <g {...zoneProps('male')}>
-                        <circle className="halo" cx="120" cy="500" r="46" fill="#c9a24a" opacity="0" />
+                        <circle className="mx-halo" cx="120" cy="500" r="46" fill="#c9a24a" opacity="0" />
                         <circle className="dot" cx="120" cy="500" r="19" fill="#c9a24a" />
                         <text x="120" y="565" textAnchor="middle" fill="#a89c85" fontFamily="'JetBrains Mono',monospace" fontSize="22" letterSpacing="3">РІД ♂</text>
                       </g>
                       <g {...zoneProps('female')}>
-                        <circle className="halo" cx="880" cy="500" r="46" fill="#c9a24a" opacity="0" />
+                        <circle className="mx-halo" cx="880" cy="500" r="46" fill="#c9a24a" opacity="0" />
                         <circle className="dot" cx="880" cy="500" r="19" fill="#c9a24a" />
                         <text x="880" y="565" textAnchor="middle" fill="#a89c85" fontFamily="'JetBrains Mono',monospace" fontSize="22" letterSpacing="3">РІД ♀</text>
                       </g>
@@ -284,7 +284,7 @@ export default function Library() {
                       ))}
 
                       <g {...zoneProps('comfort')}>
-                        <circle className="halo" cx="500" cy="500" r="82" fill="#c9a24a" opacity="0" />
+                        <circle className="mx-halo" cx="500" cy="500" r="82" fill="#c9a24a" opacity="0" />
                         <circle cx="500" cy="500" r="62" fill="none" stroke="#c9a24a" strokeWidth="1.5" opacity="0.5" />
                         <circle className="dot" cx="500" cy="500" r="34" fill="#c9a24a" />
                         <text x="500" y="514" textAnchor="middle" fill="#15101e" fontFamily="'Cormorant Garamond',serif" fontStyle="italic" fontSize="38">XX</text>
