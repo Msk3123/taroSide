@@ -1,10 +1,10 @@
 import {useEffect, useState} from 'react'
-import {Link, useNavigate} from 'react-router-dom'
+import {Link} from 'react-router-dom'
 import BrandMark from './BrandMark'
 import {auth, supportApi} from '../lib/api'
+import {useLogout} from '../hooks/useLogout'
 
 export function Nav() {
-    const navigate = useNavigate()
     const loggedIn = auth.isAuthenticated()
     const isAdmin = auth.getUser()?.role === 'Admin'
     // мобільне меню (бургер); на десктопі ігнорується — кнопки видно завжди
@@ -17,10 +17,7 @@ export function Nav() {
         supportApi.unread().then(setUnread).catch(() => { /* не критично */ })
     }, [loggedIn])
 
-    const handleLogout = () => {
-        auth.clearToken()
-        navigate('/login')
-    }
+    const handleLogout = useLogout()
 
     return (
         <nav className={`site-nav${open ? ' open' : ''}`}>

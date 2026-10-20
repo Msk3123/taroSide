@@ -17,6 +17,7 @@ import {
     type UserUsage,
 } from '../lib/api'
 import {cardSvgByName} from '../lib/cardArt'
+import {useLogout} from '../hooks/useLogout'
 
 
 type MsgRole = 'user' | 'oracle'
@@ -118,6 +119,7 @@ function barWidth(used: number, limit: number): string {
 
 export default function Chat() {
     const navigate = useNavigate()
+    const logout = useLogout()
     const [user, setUser] = useState<CurrentUser | null>(null)
     // мобільна «шухляда» з історією розкладів (на десктопі сайдбар видно завжди)
     const [sbOpen, setSbOpen] = useState(false)
@@ -441,6 +443,8 @@ export default function Chat() {
                             <small>{roleLabel}</small>
                         </div>
                     </Link>
+
+                    <button type="button" className="sb-logout" onClick={logout}>Вийти з акаунта</button>
                 </div>
             </aside>
 
@@ -459,6 +463,11 @@ export default function Chat() {
                             <path d="M4 7h16M4 12h16M4 17h16"/>
                         </svg>
                     </button>
+                    <Link to="/" className="head-btn head-back" aria-label="На головну" title="На головну">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                            <path d="M19 12H5M11 6l-6 6 6 6"/>
+                        </svg>
+                    </Link>
                     <span className="roman">☾</span>
                         <div>
                             <div className="t">{headTitle}</div>
