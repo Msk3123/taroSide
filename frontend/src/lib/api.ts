@@ -224,9 +224,17 @@ export const spreadApi = {
 
 /* -------- Матриця Долі -------- */
 
+/** Групи точок — так їх групує сторінка й так їх читає оракул. */
+export type MatrixGroup = 'personality' | 'karma' | 'family' | 'money_love' | 'purpose'
+
 export interface MatrixPoint {
-  key: 'center' | 'top' | 'left' | 'right' | 'bottom'
+  /** center | left | top | right | bottom | tailMid | tailInner | fatherTop | fatherBottom
+   *  | motherTop | motherBottom | money | love | purposePersonal | purposeSocial | purposeSpiritual */
+  key: string
+  group: MatrixGroup
   title: string
+  /** що означає сама позиція (незалежно від аркану) */
+  hint: string
   arcana: number
   cardId: number
   nameUkr: string
@@ -240,6 +248,13 @@ export interface DestinyMatrix {
   points: MatrixPoint[]
 }
 
+/** Матриця сумісності: точки пари + особисті матриці обох. */
+export interface Compatibility {
+  first: DestinyMatrix
+  second: DestinyMatrix
+  points: MatrixPoint[]
+}
+
 export const matrixApi = {
   /** Чистий розрахунок — без AI, доступний усім. */
   calculate: (birthDate: string) => api<DestinyMatrix>(`/api/matrix?birthDate=${encodeURIComponent(birthDate)}`),
@@ -249,6 +264,17 @@ export const matrixApi = {
     api<{ matrix: DestinyMatrix; reply: string }>('/api/matrix/reading', {
       method: 'POST',
       body: JSON.stringify({ BirthDate: birthDate, Question: question || null }),
+    }),
+
+  /** Сумісність двох дат — чиста математика, для всіх. */
+  compatibility: (first: string, second: string) =>
+    api<Compatibility>(`/api/matrix/compatibility?first=${encodeURIComponent(first)}&second=${encodeURIComponent(second)}`),
+
+  /** AI-прочитання сумісності (VIP/Admin), списує розклад. */
+  compatibilityReading: (first: string, second: string, question?: string) =>
+    api<{ compatibility: Compatibility; reply: string }>('/api/matrix/compatibility/reading', {
+      method: 'POST',
+      body: JSON.stringify({ First: first, Second: second, Question: question || null }),
     }),
 }
 

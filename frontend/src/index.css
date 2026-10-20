@@ -4431,3 +4431,38 @@ nav.site-nav.open .burger span:nth-child(3) { transform: translateY(-6px) rotate
 .nav-soon { margin-left: 6px; padding: 1px 5px; font-size: 8px; letter-spacing: 0.14em; }
 .demo-banner.trainer-banner { box-sizing: border-box; width: calc(100% - 64px); max-width: 1088px; margin: 8px auto 0; }
 @media (max-width: 640px)  { .demo-banner.trainer-banner { width: calc(100% - 32px); } }
+
+/* ---------- Матриця: повна октаграма, групи, сумісність ---------- */
+.mx-tabs { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 22px; border: 1px solid var(--border-soft); border-radius: 999px; }
+.mx-tabs button {
+  min-height: 40px; padding: 0 18px; border: none; border-radius: 999px; background: transparent;
+  color: var(--ink-dim); cursor: pointer;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+}
+.mx-tabs button.on { color: #15101e; background: linear-gradient(180deg, #d4af5c, #b58a3a); }
+.mx-form-pair { align-items: flex-end; }
+.mx-field { display: flex; flex-direction: column; gap: 6px; }
+.mx-stage { position: sticky; top: 16px; }
+.mx-partners { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; padding: 10px 4px 2px; font-size: 13px; color: var(--ink-dim); }
+.mx-partners em { color: var(--gold-soft); font-family: 'Cormorant Garamond', serif; font-size: 1.1em; }
+.mx-points .mx-detail { margin: 0 0 8px; }
+.mx-detail .mx-num { font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 11px; letter-spacing: 0.2em; color: var(--ink-faint); margin-left: 6px; }
+.mx-detail p + p { margin-top: 10px; }
+.mx-hint span, .mx-lab {
+  display: block; margin-bottom: 2px; color: var(--gold);
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.24em; text-transform: uppercase;
+}
+.mx-group { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.mx-group h4 { margin: 0; font-family: 'Cormorant Garamond', serif; font-weight: 400; font-size: 20px; color: var(--gold-soft); }
+.mx-group-hint { margin: 0 0 4px; font-size: 12px; line-height: 1.6; color: var(--ink-dim); }
+.mx-honest { max-width: 760px; margin: 0 0 16px; padding: 10px 14px; font-size: 13px; line-height: 1.6; color: var(--ink); border-left: 2px solid var(--gold); background: rgba(201, 162, 74, 0.06); }
+@media (max-width: 860px) {
+  .mx-stage { position: static; }
+}
+@media (max-width: 640px) {
+  .mx-tabs { display: flex; }
+  .mx-tabs button { flex: 1; padding: 0 8px; letter-spacing: 0.12em; }
+  .mx-form-pair { grid-template-columns: 1fr 1fr; }
+  .mx-form-pair .mx-field input { width: 100%; box-sizing: border-box; min-width: 0; }
+  .mx-form-pair .btn { grid-column: 1 / -1; }
+}

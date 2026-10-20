@@ -12,7 +12,7 @@ import { cardSvg } from '../lib/cardArt'
  */
 type Sec = 'methods' | 'matrix' | 'trainer' | 'deck'
 type Filter = 'all' | 'major' | SuitKey
-type Zone = 'comfort' | 'purpose' | 'karma' | 'male' | 'female'
+type Zone = 'comfort' | 'purpose' | 'karma' | 'male' | 'female' | 'family' | 'money' | 'destiny'
 
 const CRUMBS: Record<Sec, string> = {
   methods: 'Методи розкладу',
@@ -28,17 +28,24 @@ const SIDEBAR: { sec: Sec; ic: string; label: string; mobile: string; cnt?: numb
   { sec: 'deck', ic: '☾', label: 'Колода', mobile: 'Колода', cnt: 78 },
 ]
 
+// 'purpose' / 'male' / 'female' — історичні id вузлів SVG (верх / ліво / право); підписи — за класичною схемою.
 const ZONES: { zone: Zone; rom: string; name: string; pos: string; desc: string }[] = [
   { zone: 'comfort', rom: '⊙', name: 'Зона комфорту', pos: 'Центр',
-    desc: 'Ваш головний аркан. Це стан, у якому ви природно себе почуваєте — ваша базова енергія, сильні сторони й спосіб реагувати на світ. Центр Матриці показує, ким ви є без масок.' },
-  { zone: 'purpose', rom: '↑', name: 'Призначення', pos: 'Верх',
-    desc: 'Соціальна задача — те, заради чого ви прийшли. Показує сферу, де ваша реалізація буде найлегшою і найдохіднішою. Розкривається зазвичай після 40 років.' },
+    desc: 'Ваш головний аркан. Стан, у якому ви природно себе почуваєте, — базова енергія, сильні сторони й спосіб реагувати на світ. Центр показує, ким ви є без масок.' },
+  { zone: 'male', rom: '←', name: 'Особистість', pos: 'Ліворуч · день',
+    desc: 'Як вас сприймають люди: характер, перше враження, «візитка». Рахується з дня народження.' },
+  { zone: 'purpose', rom: '↑', name: 'Таланти', pos: 'Верх · місяць',
+    desc: 'Вроджені здібності й духовна підтримка, з якою ви прийшли. Рахується з місяця народження.' },
+  { zone: 'female', rom: '→', name: 'Матеріальна сфера', pos: 'Праворуч · рік',
+    desc: 'Гроші, робота, побут: як ви взаємодієте з матеріальним світом і що тут треба опрацювати. Рахується із суми цифр року.' },
   { zone: 'karma', rom: '↓', name: 'Кармічний хвіст', pos: 'Низ',
-    desc: 'Три аркани, що описують борги минулого — повторювані патерни, які тягнуться з роду. Це те, що доведеться відпрацювати, щоб рухатися вперед без блоків.' },
-  { zone: 'male', rom: '♂', name: 'Чоловіча лінія', pos: 'Ліворуч',
-    desc: 'Спадок по батьківській лінії: соціальні сценарії, ставлення до влади, грошей та дії. Тут видно, які установки ви успадкували від чоловіків роду.' },
-  { zone: 'female', rom: '♀', name: 'Жіноча лінія', pos: 'Праворуч',
-    desc: 'Спадок по материнській лінії: емоційність, здатність приймати, тілесність і безпека. Часто саме тут ховаються фінансові блоки.' },
+    desc: 'Три аркани по нижній осі: старий сценарій → урок → вихід. Читаються як одна історія — те, що життя раз у раз підкидає, доки урок не пройдено.' },
+  { zone: 'family', rom: '◇', name: 'Рід батька й матері', pos: 'Кути квадрата',
+    desc: 'Діагональний квадрат: верхній лівий і нижній правий кути — рід батька, верхній правий і нижній лівий — рід матері. Ресурс роду і незавершені задачі.' },
+  { zone: 'money', rom: '♡', name: 'Гроші й любов', pos: 'Нижній правий сектор',
+    desc: 'Лінія між внутрішніми точками справа і знизу: канал грошей (через що вони приходять легко) і канал любові (які стосунки вам підходять).' },
+  { zone: 'destiny', rom: '✧', name: 'Призначення', pos: 'Розрахунок',
+    desc: 'Три етапи: особисте (до ~40, з вертикалі й горизонталі), соціальне (40–60, з діагоналей роду) і духовне (60+, сума обох).' },
 ]
 
 const SUIT_META: { key: SuitKey; sym: string; ua: string; en: string; theme: string }[] = [
@@ -260,7 +267,7 @@ export default function Library() {
                       <g {...zoneProps('purpose')}>
                         <circle className="mx-halo" cx="500" cy="120" r="46" fill="#c9a24a" opacity="0" />
                         <circle className="dot" cx="500" cy="120" r="19" fill="#c9a24a" />
-                        <text x="500" y="66" textAnchor="middle" fill="#e8c678" fontFamily="'Cormorant Garamond',serif" fontStyle="italic" fontSize="34">Призначення</text>
+                        <text x="500" y="66" textAnchor="middle" fill="#e8c678" fontFamily="'Cormorant Garamond',serif" fontStyle="italic" fontSize="34">Таланти</text>
                       </g>
                       <g {...zoneProps('karma')}>
                         <circle className="mx-halo" cx="500" cy="880" r="46" fill="#c9a24a" opacity="0" />
@@ -270,12 +277,12 @@ export default function Library() {
                       <g {...zoneProps('male')}>
                         <circle className="mx-halo" cx="120" cy="500" r="46" fill="#c9a24a" opacity="0" />
                         <circle className="dot" cx="120" cy="500" r="19" fill="#c9a24a" />
-                        <text x="120" y="565" textAnchor="middle" fill="#a89c85" fontFamily="'JetBrains Mono',monospace" fontSize="22" letterSpacing="3">РІД ♂</text>
+                        <text x="120" y="565" textAnchor="middle" fill="#a89c85" fontFamily="'JetBrains Mono',monospace" fontSize="22" letterSpacing="3">ОСОБИСТІСТЬ</text>
                       </g>
                       <g {...zoneProps('female')}>
                         <circle className="mx-halo" cx="880" cy="500" r="46" fill="#c9a24a" opacity="0" />
                         <circle className="dot" cx="880" cy="500" r="19" fill="#c9a24a" />
-                        <text x="880" y="565" textAnchor="middle" fill="#a89c85" fontFamily="'JetBrains Mono',monospace" fontSize="22" letterSpacing="3">РІД ♀</text>
+                        <text x="880" y="565" textAnchor="middle" fill="#a89c85" fontFamily="'JetBrains Mono',monospace" fontSize="22" letterSpacing="3">МАТЕРІЯ</text>
                       </g>
 
                       {[[231, 231], [769, 231], [769, 769], [231, 769]].map(([x, y]) => (
@@ -335,8 +342,9 @@ export default function Library() {
                   Якщо число більше 22 — з нього віднімається 22, доки не залишиться значення в діапазоні Старших Арканів.
                 </p>
                 <p>
-                  Ці три числа стають вершинами октаграми: ліва (чоловіча лінія), верхня (призначення) та права
-                  (жіноча). Четверта вершина — сума перших трьох, зведена до аркану. Центр — це сума всіх чотирьох.
+                  Ці три числа стають вершинами октаграми: ліва (особистість), верхня (таланти) та права
+                  (матеріальна сфера). Четверта, нижня, — сума перших трьох, зведена до аркану: вхід у кармічний хвіст.
+                  Центр — сума всіх чотирьох. Кути діагонального квадрата — суми сусідніх вершин (рід батька й матері).
                   Далі за тією ж логікою заповнюються діагоналі та внутрішні вузли.
                 </p>
                 <p>
@@ -347,7 +355,7 @@ export default function Library() {
 
                 <div className="panel panel-cta">
                   <h3>Доступ до Матриці Долі</h3>
-                  <p>Розрахунок арканів — безкоштовно для всіх. Текстовий висновок від ШІ та поєднання з Таро — у пакеті VIP.</p>
+                  <p>Розрахунок арканів — безкоштовно для всіх. Прочитання від Lunaris, Матриця сумісності пари й поєднання з Таро — у пакеті VIP.</p>
                   <Link to="/matrix" className="btn btn-primary">Розрахувати свою матрицю →</Link>
                 </div>
               </div>
