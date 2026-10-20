@@ -17,6 +17,7 @@ public static class ApplicationDI
         services.AddScoped<IConversationService, ConversationService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IAdminService, AdminService>();
+        services.AddScoped<IMatrixCalculationService, MatrixCalculationService>();
         services.AddScoped<IMatrixService, MatrixService>();
         services.AddScoped<IAnalyticsService, AnalyticsService>();
         services.AddScoped<ISupportService, SupportService>();

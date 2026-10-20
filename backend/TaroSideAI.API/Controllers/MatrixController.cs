@@ -34,4 +34,23 @@ public class MatrixController : ControllerBase
         if (userId is null) return Unauthorized();
         return Ok(await _matrixService.ReadAsync(userId.Value, dto.BirthDate, dto.Question, ct));
     }
+
+    // GET /api/matrix/compatibility?first=1998-05-14&second=1997-03-12 — матриця пари, без AI: для всіх.
+    [AllowAnonymous]
+    [HttpGet("compatibility")]
+    public async Task<ActionResult<CompatibilityDto>> Compatibility([FromQuery] DateOnly first, [FromQuery] DateOnly second)
+    {
+        return Ok(await _matrixService.CompatibilityAsync(first, second));
+    }
+
+    // POST /api/matrix/compatibility/reading — AI-прочитання сумісності (VIP/Admin), списує розклад.
+    [Authorize]
+    [HttpPost("compatibility/reading")]
+    public async Task<ActionResult<CompatibilityReadingDto>> ReadCompatibility(
+        [FromBody] CompatibilityReadingRequestDto dto, CancellationToken ct)
+    {
+        var userId = User.GetUserId();
+        if (userId is null) return Unauthorized();
+        return Ok(await _matrixService.ReadCompatibilityAsync(userId.Value, dto.First, dto.Second, dto.Question, ct));
+    }
 }
