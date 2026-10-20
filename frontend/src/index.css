@@ -3805,6 +3805,9 @@ section.t-sec { max-width: 1200px; margin: 0 auto; padding: 60px 56px; }
 .mx-reading textarea { width: 100%; resize: vertical; box-sizing: border-box; }
 .mx-actions { display: flex; gap: 12px; flex-wrap: wrap; margin: 14px 0 24px; }
 .mx-reply { line-height: 1.8; max-width: 760px; }
+.mx-reply p { margin: 0; }
+.mx-reply p + p { margin-top: 14px; }
+.mx-reading textarea { min-height: 64px; line-height: 1.5; }
 .mx-reply em { color: var(--gold-soft); }
 @media (max-width: 860px) {
   .mx-main { padding: 24px 16px 60px; }
@@ -3820,6 +3823,8 @@ section.t-sec { max-width: 1200px; margin: 0 auto; padding: 60px 56px; }
   .mx-rom { font-size: 22px; min-width: 40px; }
   .mx-reading { margin-top: 36px; }
   .mx-reading h2 { font-size: 28px; }
+  .mx-reading textarea { min-height: 88px; }
+  .mx-reply { font-size: 15px; }
   .mx-actions .btn { flex: 1 1 100%; justify-content: center; }
 }
 
