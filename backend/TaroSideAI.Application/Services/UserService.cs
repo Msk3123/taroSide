@@ -20,8 +20,8 @@ public class UserService : IUserService
     {
         var user = new AppUser
         {
-            UserName = createUsersDto.UserName,
-            Email = createUsersDto.Email,
+            UserName = createUsersDto.UserName.Trim(),
+            Email = createUsersDto.Email.Trim(),
             Role = UserRole.Free
         };
         

@@ -66,6 +66,10 @@ export default function Register() {
                 placeholder="Як до вас звертатися?"
                 value={form.userName}
                 onChange={handleChange}
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 required
               />
             </div>
@@ -79,6 +83,10 @@ export default function Register() {
                 placeholder="raven@lunaris.night"
                 value={form.email}
                 onChange={handleChange}
+                autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 required
               />
             </div>

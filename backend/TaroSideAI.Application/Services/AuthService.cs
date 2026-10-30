@@ -20,8 +20,10 @@ public class AuthService : IAuthService
     public async Task<AuthResponseDto> SignInAsync(LoginDto loginDto)
     {
         // Форма входу приймає «пошту або ім'я», тож шукаємо за обома.
-        var user = await _userManager.FindByNameAsync(loginDto.UserName)
-                   ?? await _userManager.FindByEmailAsync(loginDto.UserName);
+        // Trim — клавіатура телефона часто дописує пробіл після підказаного слова.
+        var login = loginDto.UserName.Trim();
+        var user = await _userManager.FindByNameAsync(login)
+                   ?? await _userManager.FindByEmailAsync(login);
         if (user == null)
         {
             throw new InvalidCredentialsException();

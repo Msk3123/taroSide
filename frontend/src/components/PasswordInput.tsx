@@ -9,7 +9,9 @@ export default function PasswordInput(props: Omit<InputHTMLAttributes<HTMLInputE
 
     return (
         <div className="password-input">
-            <input {...props} type={visible ? 'text' : 'password'}/>
+            {/* Коли пароль показано (type="text"), телефон інакше зробив би першу літеру великою */}
+            <input autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                   {...props} type={visible ? 'text' : 'password'}/>
             <button
                 type="button"
                 className="password-toggle"

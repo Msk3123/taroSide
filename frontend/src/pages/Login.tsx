@@ -66,6 +66,10 @@ export default function Login() {
                 placeholder="raven@lunaris.night"
                 value={form.userName}
                 onChange={handleChange}
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 required
               />
             </div>
