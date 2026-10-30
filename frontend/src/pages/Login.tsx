@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Nav from '../components/Nav'
 import { api, auth, type CurrentUser } from '../lib/api'
+import PasswordInput from '../components/PasswordInput'
 
 /**
  * Вхід за дизайн-шаблоном login.html.
@@ -71,9 +72,8 @@ export default function Login() {
 
             <div className="field">
               <label htmlFor="password">Таємне слово</label>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
                 name="password"
                 placeholder="••••••••"
                 value={form.password}

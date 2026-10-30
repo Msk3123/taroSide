@@ -4466,3 +4466,27 @@ nav.site-nav.open .burger span:nth-child(3) { transform: translateY(-6px) rotate
   .mx-form-pair .mx-field input { width: 100%; box-sizing: border-box; min-width: 0; }
   .mx-form-pair .btn { grid-column: 1 / -1; }
 }
+
+/* Поле пароля з кнопкою «показати» */
+.password-input { position: relative; }
+.field .password-input input { padding-right: 48px; }
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.password-toggle:hover,
+.password-toggle[aria-pressed="true"] { color: var(--gold); }
+.password-toggle:focus-visible { outline: 1px solid var(--gold); outline-offset: -4px; }

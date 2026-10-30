@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import Nav from '../components/Nav'
+import PasswordInput from '../components/PasswordInput'
 
 /**
  * Reset — встановлення нового пароля за посиланням з листа.
@@ -63,8 +64,7 @@ export default function Reset() {
               <form onSubmit={handleSubmit}>
                 <div className="field">
                   <label>Новий пароль</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     placeholder="••••••••"
                     value={p1}
                     onChange={e => setP1(e.target.value)}
@@ -88,8 +88,7 @@ export default function Reset() {
 
                 <div className="field">
                   <label>Підтвердіть пароль</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     placeholder="••••••••"
                     value={p2}
                     onChange={e => { setP2(e.target.value); setMismatch(false) }}

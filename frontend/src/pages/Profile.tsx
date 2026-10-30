@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Nav from '../components/Nav'
+import PasswordInput from '../components/PasswordInput'
 import {
   auth,
   authApi,
@@ -248,8 +249,7 @@ export default function Profile() {
               <div className="panel-sub">Оновити секрет</div>
               <div className="field">
                 <label>Поточний пароль</label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={pwd.current}
                   onChange={e => setPwd({ ...pwd, current: e.target.value })}
                   placeholder="••••••••"
@@ -258,8 +258,7 @@ export default function Profile() {
               </div>
               <div className="field">
                 <label>Новий пароль</label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={pwd.next}
                   onChange={e => setPwd({ ...pwd, next: e.target.value })}
                   placeholder="Мінімум 8 символів"
@@ -268,8 +267,7 @@ export default function Profile() {
               </div>
               <div className="field">
                 <label>Підтвердити</label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={pwd.confirm}
                   onChange={e => setPwd({ ...pwd, confirm: e.target.value })}
                   placeholder="••••••••"

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Nav from '../components/Nav'
 import { api } from '../lib/api'
+import PasswordInput from '../components/PasswordInput'
 
 /**
  * Реєстрація за дизайн-шаблоном register.html.
@@ -85,9 +86,8 @@ export default function Register() {
             <div className="field-row">
               <div className="field">
                 <label htmlFor="password">Таємне слово</label>
-                <input
+                <PasswordInput
                   id="password"
-                  type="password"
                   name="password"
                   placeholder="••••••••"
                   value={form.password}
@@ -97,9 +97,8 @@ export default function Register() {
               </div>
               <div className="field">
                 <label htmlFor="password2">Повторіть</label>
-                <input
+                <PasswordInput
                   id="password2"
-                  type="password"
                   placeholder="••••••••"
                   value={password2}
                   onChange={e => setPassword2(e.target.value)}
