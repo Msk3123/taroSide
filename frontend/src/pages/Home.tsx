@@ -10,9 +10,9 @@ export default function Home() {
         <section className="hero">
           <div className="eyebrow fade-up d2">Вищі Аркани · Розклад Таро</div>
           <h1 className="fade-up d3">
-            <span className="greeting">Вітаємо, подорожнику —</span>
-            Lunaris.
-            <span className="accent">Шепіт карт</span>
+            <span className="greeting">Вітаємо, подорожній —</span>
+            Lunaris.{' '}
+            <span className="accent">Шепіт карт</span>{' '}
             у темряві ночі.
           </h1>
           <p className="lede fade-up d4">

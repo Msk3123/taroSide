@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react'
-import {Link, useNavigate} from 'react-router-dom'
+import {Link, useNavigate, useSearchParams} from 'react-router-dom'
 import BrandMark from '../components/BrandMark'
 import {
     ApiError,
@@ -52,7 +52,7 @@ const CHIPS: ChipDef[] = [
 /** Людська назва ролі для сайдбару/профілю. */
 const ROLE_LABEL: Record<string, string> = {
     Guest: 'Гість',
-    Free: 'Free · Подорожник',
+    Free: 'Free · Подорожній',
     Premium: 'Premium · Оракул',
     Vip: 'VIP · Містик',
     Admin: 'Адмін',
@@ -79,7 +79,7 @@ const WELCOME: ChatMessage = {
     role: 'oracle',
     who: 'Lunaris · Оракул',
     text: [
-        'Вітаю, подорожнику. Я слухаю шепіт карт у темряві ночі.',
+        'Вітаю, подорожній. Я слухаю шепіт карт у темряві ночі.',
         'Постав своє питання — або попроси зробити розклад, і я витягну карти за завісою.',
     ],
 }
@@ -127,6 +127,7 @@ function barWidth(used: number, limit: number): string {
 
 export default function Chat() {
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
     const logout = useLogout()
     const [user, setUser] = useState<CurrentUser | null>(null)
     // мобільна «шухляда» з історією розкладів (на десктопі сайдбар видно завжди)
@@ -170,6 +171,9 @@ export default function Chat() {
         })
         conversationApi.list().then(setConversations).catch(() => { /* мовчазно */
         })
+        // Перехід із Журналу: /chat?c=<id> одразу відкриває потрібну розмову.
+        const fromJournal = searchParams.get('c')
+        if (fromJournal) openConversation(fromJournal)
     }, [])
 
     function refreshUsage() {
@@ -287,6 +291,7 @@ export default function Chat() {
                 })
             setMessages(msgs.length ? msgs : [WELCOME])
         } catch {
+            setConvId(null)
             setMessages([WELCOME])
         }
     }

@@ -49,7 +49,7 @@ export default function Register() {
           <span className="auth-pin tl" /><span className="auth-pin tr" />
           <span className="auth-pin bl" /><span className="auth-pin br" />
 
-          <div className="auth-eyebrow">☾ Новий подорожник ☾</div>
+          <div className="auth-eyebrow">☾ Новий подорожній ☾</div>
           <h1>Відкрий <span className="accent">колоду</span></h1>
           <p className="auth-sub">
             Створіть обліковий запис — і отримаєте 2 безкоштовні розклади на день,
@@ -58,7 +58,7 @@ export default function Register() {
 
           <form onSubmit={handleSubmit}>
             <div className="field">
-              <label htmlFor="userName">Ім'я подорожника</label>
+              <label htmlFor="userName">Ваше ім'я</label>
               <input
                 id="userName"
                 type="text"

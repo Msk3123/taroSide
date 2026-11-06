@@ -33,7 +33,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 const ROLE_LABEL: Record<CurrentUser['role'], string> = {
   Guest: 'Гість',
-  Free: 'Free · Подорожник',
+  Free: 'Free · Подорожній',
   Premium: 'Premium · Оракул',
   Vip: 'VIP · Містик',
   Admin: 'Адмін',

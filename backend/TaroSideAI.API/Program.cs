@@ -1,5 +1,7 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
@@ -30,9 +32,38 @@ builder.Services.AddIdentity<AppUser, IdentityRole<Guid>>(options =>
         options.Password.RequiredLength = 8;
         options.Password.RequireNonAlphanumeric = false;
         options.User.RequireUniqueEmail = true;
+        // Стандарт Identity — лише латиниця; додаємо кирилицю й апостроф (Руля, Мар'яна, Дарʼя).
+        options.User.AllowedUserNameCharacters =
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+" +
+            "абвгґдеєёжзиіїйклмнопрстуфхцчшщъыьэюя" +
+            "АБВГҐДЕЄЁЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ" +
+            "'’ʼ";
     })
     .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders()
+    .AddErrorDescriber<UkrainianIdentityErrorDescriber>();
+
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+    options.TokenLifespan = TimeSpan.FromHours(1)); // скільки діє посилання з листа
+
+// Застосунок стоїть за Caddy: справжній IP клієнта приходить у X-Forwarded-For.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor;
+    options.KnownNetworks.Clear(); // адреса Caddy в мережі Docker заздалегідь невідома
+    options.KnownProxies.Clear();
+});
+
+// Кожен запит на відновлення надсилає справжній лист, тому обмежуємо їх за IP.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = (context, ct) => new ValueTask(context.HttpContext.Response.WriteAsJsonAsync(
+        new { detail = "Забагато спроб. Спробуйте трохи згодом" }, ct));
+    options.AddPolicy("forgot-password", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(15) }));
+});
 
 
 // ──────────────────────────────────────────────
@@ -151,6 +182,7 @@ if (!app.Environment.IsDevelopment())
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
 }
 
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
@@ -163,6 +195,7 @@ app.UseHttpsRedirection();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseCors("FrontendPolicy");
+app.UseRateLimiter();
 app.UseAuthentication(); // ВАЖЛИВО: спочатку Authentication, потім Authorization
 app.UseAuthorization();
 app.MapControllers();

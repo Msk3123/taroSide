@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using TaroSideAI.Application.DTOs;
 using TaroSideAI.Application.Interfaces;
 namespace TaroSideAI.API.Controllers;
@@ -29,6 +30,21 @@ public class AuthController : ControllerBase
         return Ok(new { user.Id, user.UserName, user.Email });
     }
     
+    [EnableRateLimiting("forgot-password")]
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPasswordAsync([FromBody] ForgotPasswordDto dto)
+    {
+        await _authService.RequestPasswordResetAsync(dto.Email);
+        return NoContent();
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPasswordAsync([FromBody] ResetPasswordDto dto)
+    {
+        await _authService.ResetPasswordAsync(dto);
+        return NoContent();
+    }
+
     [Authorize]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePasswordAsync([FromBody] ChangePasswordDto dto)

@@ -1,61 +1,46 @@
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {Link} from 'react-router-dom'
 import Nav from '../components/Nav'
+import {auth, type Conversation, conversationApi} from '../lib/api'
 
 /**
- * Журнал розкладів — особистий архів (шаблон journal.html).
- * Дані поки статичні-приклади: бекенд ще не персистить карти розкладів
- * (відомий гап). Коли з'явиться збереження readings — підставимо реальні.
+ * Журнал — особистий архів: справжні розмови користувача з Lunaris.
+ * Натиск на рядок відкриває розмову в чаті разом зі збереженими картами.
  */
 
-interface JRow {
-    rom: string
-    title: string
-    sub: string
-    cards: string[]
-    dateY: string
-    dateT: string
-    saved?: boolean
+const dateOf = (c: Conversation) => new Date(c.updatedAt ?? c.createdAt ?? 0)
+
+function monthLabel(date: Date): string {
+    return date.toLocaleDateString('uk-UA', {month: 'long', year: 'numeric'})
 }
 
-interface JGroup {
-    month: string
-    rows: JRow[]
+function groupByMonth(items: Conversation[]): { month: string; rows: Conversation[] }[] {
+    const groups: { month: string; rows: Conversation[] }[] = []
+    for (const conv of items) {
+        const month = monthLabel(dateOf(conv))
+        const last = groups[groups.length - 1]
+        if (last?.month === month) last.rows.push(conv)
+        else groups.push({month, rows: [conv]})
+    }
+    return groups
 }
-
-const GROUPS: JGroup[] = [
-    {
-        month: 'Квітень · 2026',
-        rows: [
-            {rom: 'III', title: 'Чи варто змінити роботу?', sub: 'Минуле · Теперішнє · Майбутнє', cards: ['⚖', '☾', '⚔'], dateY: 'Сьогодні', dateT: '14:02', saved: true},
-            {rom: 'V', title: 'Стосунки з Мариною', sub: "П'ятикутник · Аналіз ситуації", cards: ['♥', '⚔', '☾', '⚖', '☉'], dateY: 'Сьогодні', dateT: '10:44'},
-            {rom: 'III', title: 'Фінансовий період до літа', sub: 'Минуле · Теперішнє · Майбутнє', cards: ['🜃', '⚚', '☉'], dateY: 'Вт', dateT: '28.04'},
-            {rom: 'VII', title: 'Прихована причина моєї тривоги', sub: 'Підкова долі · Глибокий розгляд', cards: ['☾', '⚔', '⛧', '⚝', '✦', '⚱', '☉'], dateY: 'Пн', dateT: '27.04', saved: true},
-            {rom: 'III', title: 'Щоденний витяг', sub: 'Картка дня · автоматично', cards: ['☉'], dateY: 'Пн', dateT: '27.04'},
-        ],
-    },
-    {
-        month: 'Березень · 2026',
-        rows: [
-            {rom: 'V', title: 'Подорож на південь', sub: "П'ятикутник", cards: ['⚔', '☉', '🜃', '✦', '∞'], dateY: '11.04', dateT: '—'},
-            {rom: 'III', title: 'Переїзд та родина', sub: 'Минуле · Теперішнє · Майбутнє', cards: ['♀', '⊕', '☥'], dateY: '08.04', dateT: '—'},
-            {rom: 'III', title: 'Перший розклад', sub: 'Минуле · Теперішнє · Майбутнє', cards: ['✦', '⚚', '☾'], dateY: '02.04', dateT: '—'},
-        ],
-    },
-]
-
-const PILLS = ['Усі', 'III', 'V', 'VII', '★ Збережені'] as const
 
 export default function Journal() {
-    const [pill, setPill] = useState<string>('Усі')
+    const loggedIn = auth.isAuthenticated()
+    const [conversations, setConversations] = useState<Conversation[] | null>(null)
+    const [failed, setFailed] = useState(false)
     const [query, setQuery] = useState('')
 
-    const match = (r: JRow) => {
-        if (query && !r.title.toLowerCase().includes(query.toLowerCase())) return false
-        if (pill === 'Усі') return true
-        if (pill === '★ Збережені') return !!r.saved
-        return r.rom === pill
-    }
+    useEffect(() => {
+        if (!loggedIn) return
+        conversationApi.list()
+            .then(list => setConversations(
+                [...list].sort((a, b) => dateOf(b).getTime() - dateOf(a).getTime())))
+            .catch(() => setFailed(true))
+    }, [loggedIn])
+
+    const needle = query.trim().toLowerCase()
+    const visible = (conversations ?? []).filter(c => c.title.toLowerCase().includes(needle))
 
     return (
         <>
@@ -67,54 +52,66 @@ export default function Journal() {
                     <h1>Архів <span className="accent">розкладів</span></h1>
                     <p className="lede">Усі ваші запити до карт, збережені в одному місці. Перегляньте,
                         як змінювалися відповіді, як рухається ваша доля.</p>
-                    {/* Сторінка поки на захардкоджених даних (бекенд Readings не наповнюється) — чесно кажемо */}
-                    <div className="demo-banner">
-                        ☾ Це демо-приклад того, яким буде Журнал — записи нижче вигадані. Ваші справжні
-                        розклади вже зберігаються в <Link to="/chat">історії Гадання</Link>.
+                </div>
+
+                {!loggedIn && (
+                    <div className="panel panel-cta fade-up d2">
+                        <p>Увійдіть, щоб побачити свої розклади.</p>
+                        <Link to="/login" className="btn btn-primary">Увійти →</Link>
                     </div>
-                </div>
+                )}
 
-                <div className="j-tools fade-up d2">
-                    <input
-                        placeholder="🔍 Пошук за темою або картою…"
-                        value={query}
-                        onChange={e => setQuery(e.target.value)}
-                    />
-                    {PILLS.map(p => (
-                        <button
-                            key={p}
-                            className={`j-pill ${pill === p ? 'on' : ''}`}
-                            onClick={() => setPill(p)}
-                        >
-                            {p}
-                        </button>
-                    ))}
-                </div>
+                {failed && (
+                    <div className="panel panel-cta fade-up d2">
+                        <p>Не вдалося завантажити архів. Оновіть сторінку або спробуйте трохи згодом.</p>
+                    </div>
+                )}
 
-                <div className="j-list fade-up d3">
-                    {GROUPS.map(g => {
-                        const rows = g.rows.filter(match)
-                        if (rows.length === 0) return null
-                        return (
-                            <div key={g.month}>
-                                <div className="month-label">{g.month}</div>
-                                {rows.map((r, i) => (
-                                    <Link key={i} to="/reading" className="j-row">
-                                        <span className="j-rom">{r.rom}</span>
-                                        <div className="j-meta">
-                                            <div className="t">{r.title}</div>
-                                            <div className="s">{r.sub}</div>
-                                        </div>
-                                        <div className="j-cards">
-                                            {r.cards.map((c, ci) => <span key={ci} className="j-mini">{c}</span>)}
-                                        </div>
-                                        <div className="j-date"><span className="y">{r.dateY}</span>{r.dateT}</div>
-                                    </Link>
-                                ))}
-                            </div>
-                        )
-                    })}
-                </div>
+                {conversations?.length === 0 && (
+                    <div className="panel panel-cta fade-up d2">
+                        <p>Тут поки порожньо. Ваші розклади зʼявляться після першої розмови з Lunaris.</p>
+                        <Link to="/chat" className="btn btn-primary">Зробити перший розклад →</Link>
+                    </div>
+                )}
+
+                {!!conversations?.length && (
+                    <>
+                        <div className="j-tools fade-up d2">
+                            <input
+                                placeholder="🔍 Пошук за темою…"
+                                aria-label="Пошук за темою"
+                                value={query}
+                                onChange={e => setQuery(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="j-list fade-up d3">
+                            {visible.length === 0 && <p className="lede">Нічого не знайдено.</p>}
+                            {groupByMonth(visible).map(g => (
+                                <div key={g.month}>
+                                    <div className="month-label">{g.month}</div>
+                                    {g.rows.map(c => {
+                                        const d = dateOf(c)
+                                        return (
+                                            <Link key={c.id} to={`/chat?c=${c.id}`} className="j-row j-row-conv">
+                                                <span className="j-rom">☾</span>
+                                                <div className="j-meta">
+                                                    <div className="t">{c.title}</div>
+                                                </div>
+                                                <div className="j-date">
+                                                    <span className="y">
+                                                        {d.toLocaleDateString('uk-UA', {day: '2-digit', month: '2-digit'})}
+                                                    </span>
+                                                    {d.toLocaleTimeString('uk-UA', {hour: '2-digit', minute: '2-digit'})}
+                                                </div>
+                                            </Link>
+                                        )
+                                    })}
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
             </main>
         </>
     )
