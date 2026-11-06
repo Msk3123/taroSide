@@ -45,7 +45,11 @@ public class ChatAiService : IChatAiService
         "ансформацію, необхідне руйнування старого, кармічні уроки або вихід із тіні. Уникай фаталізму.\n3. " +
         "Структура відповіді: Почни з короткого вступу, розкрий суть розкладу, " +
         "і обов'язково заверши конструктивною порадою або відкритим запитанням для роздумів," +
-        " залишаючи користувачу простір для дій.\n\n# СУВОРІ ОБМЕЖЕННЯ (GUARDRAILS)\n- " +
+        " залишаючи користувачу простір для дій.\n\n" +
+        "# КАРТИ МИНУЛИХ РОЗКЛАДІВ\n" +
+        "Мітка «[Карти цього розкладу: …]» у твоїх минулих відповідях показує, що тоді випало. " +
+        "Це службова позначка: ніколи не повторюй її у тексті й не вигадуй карт, яких там не було.\n\n" +
+        "# СУВОРІ ОБМЕЖЕННЯ (GUARDRAILS)\n- " +
         "Медицина та фінанси: Ти категорично не ставиш діагнозів, не даєш порад щодо лікування, " +
         "вагітності, юридичних справ чи точних фінансових інвестицій. " +
         "Якщо питають про це — м'яко нагадай, що Таро підсвічує енергії, але не замінює фахівців.\n- " +
@@ -122,7 +126,7 @@ public class ChatAiService : IChatAiService
     }
 
     public async Task<ChatResultDto> ChatAsync(string userMessage, int currentSpreadId, List<ChatMessage> history,
-        MessageAllowance allowance, DestinyMatrixDto? matrix, CancellationToken ct)
+        MessageAllowance allowance, DestinyMatrixDto? matrix, int priorReadings, CancellationToken ct)
     {
         // Сюди інструмент складатиме реально витягнуті карти. Змінна живе лише
         // в межах ОДНОГО запиту (замикання), тож спільного стану між
@@ -135,7 +139,11 @@ public class ChatAiService : IChatAiService
         // тож LLM не може «вибрати» інший, дорожчий розклад.
         async Task<string> DrawTarotCardsAsync(
             [Description("Лише для вільного розкладу: скільки карт витягнути. Для інших розкладів не передавай.")]
-            int? cardCount = null)
+            int? cardCount = null,
+            [Description("true, якщо людина знову просить розклад на ту саму тему, що вже була раніше в цій розмові, навіть іншими словами: " +
+                         "«ще раз», «зроби ще», «витягни ще карти», «то таки міняти роботу?». " +
+                         "false, якщо тема нова або розкладів у цій розмові ще не було.")]
+            bool sameTopicAsBefore = false)
         {
             // Модель іноді викликає інструмент двічі за відповідь — другий раз карти не тягнемо.
             if (drawnCards.Count > 0)
@@ -194,7 +202,8 @@ public class ChatAiService : IChatAiService
 
             // LLM отримує тільки факти (карти + опис розкладу), без готового тексту.
             return $"{descriptionSpread}\n\nВитягнуті карти:\n{string.Join("\n", lines)}\n\n" +
-                   $"Твоя задача: Інтерпретуй ці карти як єдину історію у контексті проблеми користувача.{matrixNote}";
+                   $"Твоя задача: Інтерпретуй ці карти як єдину історію у контексті проблеми користувача.{matrixNote}" +
+                   (sameTopicAsBefore ? RepeatReadingTask(priorReadings) : string.Empty);
         }
 
         var drawCardsTool = AIFunctionFactory.Create(
@@ -329,6 +338,26 @@ public class ChatAiService : IChatAiService
             Cards = drawnCards,
             MatrixUsed = matrixUsed
         };
+    }
+
+    /// <summary>
+    /// Вказівка йде разом із витягнутими картами: gpt-4o-mini ігнорує таке правило в загальному промпті,
+    /// а безпосередньо перед відповіддю виконує його. Викликається, лише коли модель позначила ту саму тему.
+    /// </summary>
+    private static string RepeatReadingTask(int priorReadings)
+    {
+        if (priorReadings == 0) return string.Empty;
+
+        const string compare =
+            "\n\nОБОВ'ЯЗКОВО: людина знову питає про ту саму тему. ПЕРШИМ реченням напиши без родових закінчень: " +
+            "«Це питання вже звучало», назви карти минулого розкладу на цю тему з мітки «[Карти цього розкладу: …]» " +
+            "і порівняй: що повторилось, що змінилось. ";
+
+        return priorReadings == 1
+            ? compare
+            : compare + "Прямо й тепло назви, що до цієї теми повертаєтесь уже не вперше і що такі повтори часто означають: " +
+              "відповідь не заспокоює або хочеться почути іншу. Останнім реченням постав одне запитання: " +
+              "яку відповідь людина сподівається почути або чого боїться. Не докоряй і не кажи, що карти сердяться.";
     }
 
     public async Task<string> InterpretMatrixAsync(DestinyMatrixDto matrix, string? question, CancellationToken ct)

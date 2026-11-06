@@ -23,6 +23,23 @@ public class ConversationService : IConversationService
         _aiService = aiService;
         _userService = userService;
     }
+    /// <summary>Додає до минулої відповіді витягнуті карти: без них модель не може порівняти повторні розклади.</summary>
+    private static string WithCards(Message message)
+    {
+        if (string.IsNullOrEmpty(message.CardsJson)) return message.Content;
+        try
+        {
+            var cards = JsonSerializer.Deserialize<List<DrawnCardDto>>(message.CardsJson, JsonCamelCase);
+            if (cards is not { Count: > 0 }) return message.Content;
+            var names = cards.Select(c => c.IsReversed ? $"{c.Name} (перевернута)" : c.Name);
+            return $"[Карти цього розкладу: {string.Join(", ", names)}]\n{message.Content}";
+        }
+        catch (JsonException)
+        {
+            return message.Content;
+        }
+    }
+
     public async Task<Conversation> CreateConversationAsync(Guid userId, string title)
     {
         var conv = new Conversation
@@ -67,8 +84,9 @@ public class ConversationService : IConversationService
         var history = conv.Messages
             .OrderBy(m => m.CreatedAt)
             .TakeLast(10)
-            .Select(m => new ChatMessage(m.Role == "user" ? ChatRole.User : ChatRole.Assistant, m.Content))
+            .Select(m => new ChatMessage(m.Role == "user" ? ChatRole.User : ChatRole.Assistant, WithCards(m)))
             .ToList();
+        var priorReadings = conv.Messages.Count(m => m.CardsJson != null);
 
         var userMsg = new Message
         {
@@ -80,7 +98,7 @@ public class ConversationService : IConversationService
         };
         await _repo.AddMessageAsync(userMsg);
         // LLM генерує відповідь (текст + карти)
-        var result = await _aiService.ChatAsync(message, spreadId, history, allowance, matrix, ct);
+        var result = await _aiService.ChatAsync(message, spreadId, history, allowance, matrix, priorReadings, ct);
         // Карти зберігаємо як JSON у самому повідомленні, щоб при повторному
         // відкритті розмови вони не зникали. camelCase — щоб формат збігався з
         // «живою» відповіддю (ChatReply.cards), яку фронт уже вміє малювати.
