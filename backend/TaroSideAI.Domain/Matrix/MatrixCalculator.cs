@@ -18,11 +18,13 @@ public static class MatrixCalculator
         return sum;
     }
 
-    // Операція 2: зведення до аркану. Для всього: 27 → 5, 25 → 3
+    // Операція 2: зведення до аркану. Більше за 22 — складаємо цифри: 27 → 9, 25 → 7, 99 → 18.
     public static int ReduceToArcana(int number)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(number, 1);
+
         while (number > MaxArcana)
-            number -= MaxArcana;
+            number = SumDigits(number);
         return number;
     }
 
