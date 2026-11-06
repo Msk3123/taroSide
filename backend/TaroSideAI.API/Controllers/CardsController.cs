@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaroSideAI.API.Extensions;
-using TaroSideAI.Application.DTOs;
 using TaroSideAI.Application.Interfaces;
 
 namespace TaroSideAI.API.Controllers;
@@ -17,18 +16,6 @@ public class CardsController : ControllerBase
     public CardsController(ICardService cardService)
     {
         _cardService = cardService;
-    }
-
-    // POST /api/cards
-    // Тіло запиту: JSON з полями CreateTarotCardDto
-    [Authorize(Roles = "Admin")]
-    [HttpPost]
-    public async Task<IActionResult> CreateCard([FromBody] CreateTarotCardDto dto)
-    {
-        var card = await _cardService.CreateCardAsync(dto);
-
-        // 201 Created + заголовок Location: /api/cards/1
-        return CreatedAtAction(nameof(GetCard), new { id = card.Id }, card);
     }
 
     // GET /api/cards/1

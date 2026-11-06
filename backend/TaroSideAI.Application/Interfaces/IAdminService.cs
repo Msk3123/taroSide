@@ -17,6 +17,12 @@ public interface IAdminService
     /// <summary>Видає тариф Free/Premium/Vip на <paramref name="days"/> днів (null — безстроково).</summary>
     Task<AdminUserDto?> GrantSubscriptionAsync(Guid userId, UserRole role, int? days);
 
+    /// <summary>Розмови користувача. Null — якщо користувача не знайдено.</summary>
+    Task<List<AdminConversationDto>?> GetUserConversationsAsync(Guid userId);
+
+    /// <summary>Повідомлення розмови. Null — якщо це не розмова вказаного користувача.</summary>
+    Task<List<AdminMessageDto>?> GetUserConversationMessagesAsync(Guid userId, Guid conversationId);
+
     /// <summary>Видаляє користувача. False — якщо користувача не знайдено.</summary>
     Task<bool> DeleteUserAsync(Guid userId);
 }

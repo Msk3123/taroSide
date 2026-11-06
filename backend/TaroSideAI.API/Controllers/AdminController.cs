@@ -14,9 +14,14 @@ public class AdminController : ControllerBase
     private readonly IAdminService _adminService;
     private readonly IAnalyticsService _analyticsService;
     private readonly ISupportService _supportService;
+    private readonly IPromoService _promoService;
+    private readonly ILogger<AdminController> _logger;
 
-    public AdminController(IAdminService adminService, IAnalyticsService analyticsService, ISupportService supportService)
+    public AdminController(IAdminService adminService, IAnalyticsService analyticsService, ISupportService supportService,
+        IPromoService promoService, ILogger<AdminController> logger)
     {
+        _promoService = promoService;
+        _logger = logger;
         _adminService = adminService;
         _analyticsService = analyticsService;
         _supportService = supportService;
@@ -43,6 +48,55 @@ public class AdminController : ControllerBase
         var user = await _adminService.GetUserDetailsAsync(id);
         if (user is null) return NotFound("Користувача не знайдено");
         return Ok(user);
+    }
+
+    // GET /api/admin/users/{id}/conversations — список розмов користувача
+    [HttpGet("users/{id:guid}/conversations")]
+    public async Task<ActionResult<List<AdminConversationDto>>> GetUserConversationsAsync(Guid id)
+    {
+        var conversations = await _adminService.GetUserConversationsAsync(id);
+        if (conversations is null) return NotFound("Користувача не знайдено");
+        return Ok(conversations);
+    }
+
+    // GET /api/admin/users/{id}/conversations/{conversationId} — повідомлення розмови.
+    // Кожен перегляд особистої переписки пишемо в лог: хто, чию і яку (без тексту).
+    [HttpGet("users/{id:guid}/conversations/{conversationId:guid}")]
+    public async Task<ActionResult<List<AdminMessageDto>>> GetUserConversationAsync(Guid id, Guid conversationId)
+    {
+        var messages = await _adminService.GetUserConversationMessagesAsync(id, conversationId);
+        if (messages is null) return NotFound("Розмову не знайдено");
+
+        _logger.LogInformation("Admin {AdminId} viewed conversation {ConversationId} of user {UserId}",
+            User.FindFirstValue(ClaimTypes.NameIdentifier), conversationId, id);
+        return Ok(messages);
+    }
+
+    // Промокоди: список, створення, увімкнення/вимкнення, видалення невикористаних
+    [HttpGet("promos")]
+    public async Task<ActionResult<List<PromoDto>>> GetPromosAsync()
+    {
+        return Ok(await _promoService.GetAllAsync());
+    }
+
+    [HttpPost("promos")]
+    public async Task<ActionResult<PromoDto>> CreatePromoAsync([FromBody] CreatePromoDto dto)
+    {
+        return Ok(await _promoService.CreateAsync(dto));
+    }
+
+    [HttpPut("promos/{id:guid}/active")]
+    public async Task<IActionResult> SetPromoActiveAsync(Guid id, [FromBody] SetPromoActiveDto dto)
+    {
+        await _promoService.SetActiveAsync(id, dto.IsActive);
+        return NoContent();
+    }
+
+    [HttpDelete("promos/{id:guid}")]
+    public async Task<IActionResult> DeletePromoAsync(Guid id)
+    {
+        await _promoService.DeleteAsync(id);
+        return NoContent();
     }
 
     // PUT /api/admin/users/{id}/subscription — видати тариф на N днів (або безстроково)

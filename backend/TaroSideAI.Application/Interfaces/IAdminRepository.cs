@@ -12,4 +12,9 @@ public interface IAdminRepository
 
     /// <summary>Лічильники активності одного юзера (розмови, повідомлення, розклади, остання дія).</summary>
     Task<(int Conversations, int Messages, int Readings, DateTime? LastActive, int Support)> GetUserActivityAsync(Guid userId);
+
+    Task<List<AdminConversationDto>> GetUserConversationsAsync(Guid userId);
+
+    /// <summary>Повідомлення розмови. Null — якщо це не розмова вказаного користувача.</summary>
+    Task<List<AdminMessageDto>?> GetUserConversationMessagesAsync(Guid userId, Guid conversationId);
 }

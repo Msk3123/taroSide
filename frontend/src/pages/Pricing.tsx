@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import Nav from '../components/Nav'
-import { auth } from '../lib/api'
+import { auth, promoApi, type PromoDiscount } from '../lib/api'
 import { track } from '../lib/analytics'
 import { TIKTOK_URL } from '../lib/links'
 
@@ -16,6 +16,32 @@ export default function Pricing() {
   // Який тариф людина хотіла купити — показуємо модалку-заглушку
   const [buying, setBuying] = useState<'Premium' | 'VIP' | null>(null)
 
+  const loggedIn = auth.isAuthenticated()
+  const [promoCode, setPromoCode] = useState('')
+  const [promoBusy, setPromoBusy] = useState(false)
+  const [promoResult, setPromoResult] = useState<{ kind: 'ok' | 'err'; text: string; chat?: boolean } | null>(null)
+  const [discount, setDiscount] = useState<PromoDiscount | null>(null)
+
+  useEffect(() => {
+    if (loggedIn) promoApi.discount().then(d => setDiscount(d ?? null)).catch(() => { /* не критично */ })
+  }, [loggedIn])
+
+  async function redeem(e: FormEvent) {
+    e.preventDefault()
+    setPromoResult(null)
+    setPromoBusy(true)
+    try {
+      const res = await promoApi.redeem(promoCode)
+      if (res.discount) setDiscount(res.discount)
+      setPromoCode('')
+      setPromoResult({ kind: 'ok', text: res.message, chat: res.type === 'Subscription' })
+    } catch (err) {
+      setPromoResult({ kind: 'err', text: err instanceof Error ? err.message : 'Не вдалося застосувати промокод' })
+    } finally {
+      setPromoBusy(false)
+    }
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setBuying(null) }
     window.addEventListener('keydown', onKey)
@@ -27,11 +53,19 @@ export default function Pricing() {
     track('buy_click') // в адмінці видно, скільки людей хотіли купити
   }
 
-  const premNum = yearly ? '119' : '149'
-  const premNote = yearly ? '1 428 ₴ на рік · економія 360 ₴' : 'планова ціна'
-  const vipNum = yearly ? '303' : '379'
-  const vipNote = yearly ? '3 636 ₴ на рік · економія 912 ₴' : 'планова ціна'
-  const loggedIn = auth.isAuthenticated()
+  const withDiscount = (price: number) =>
+    discount ? Math.round(price * (100 - discount.percent) / 100) : price
+  const discountNote = (price: number) =>
+    `було ${price} ₴ · знижка ${discount?.percent}% за кодом ${discount?.code}`
+
+  const premBase = yearly ? 119 : 149
+  const premNote = discount
+    ? discountNote(premBase)
+    : yearly ? '1 428 ₴ на рік · економія 360 ₴' : 'планова ціна'
+  const vipBase = yearly ? 303 : 379
+  const vipNote = discount
+    ? discountNote(vipBase)
+    : yearly ? '3 636 ₴ на рік · економія 912 ₴' : 'планова ціна'
 
   return (
     <>
@@ -101,7 +135,7 @@ export default function Pricing() {
             </p>
 
             <div className="plan-price">
-              <span className="num">{premNum}</span>
+              <span className="num">{withDiscount(premBase)}</span>
               <span className="cur">₴</span>
               <span className="per">на місяць</span>
             </div>
@@ -133,7 +167,7 @@ export default function Pricing() {
             </p>
 
             <div className="plan-price">
-              <span className="num">{vipNum}</span>
+              <span className="num">{withDiscount(vipBase)}</span>
               <span className="cur">₴</span>
               <span className="per">на місяць</span>
             </div>
@@ -209,12 +243,43 @@ export default function Pricing() {
           </div>
         </div>
 
-        {/* Промокоди: бекенду ще немає — чесно кажемо, де стежити за новинами */}
+        {/* Підписка за кодом діє одразу. Знижку адмін бачить у профілі й враховує, поки немає онлайн-оплати. */}
         <div className="promo-section fade-up d4">
           <div className="promo-head">
-            <h3>Акції <em>з TikTok</em></h3>
-            <div className="sub">Промокоди на сайті з’являться разом з оплатою</div>
+            <h3>Є <em>промокод?</em></h3>
+            <div className="sub">Введіть його, щоб отримати знижку або подарунковий тариф</div>
           </div>
+          {loggedIn ? (
+            <form className="promo-input-wrap" onSubmit={redeem}>
+              <input
+                aria-label="Промокод"
+                placeholder="Ваш промокод"
+                value={promoCode}
+                onChange={e => setPromoCode(e.target.value)}
+                maxLength={32}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                required
+              />
+              <button type="submit" className="btn btn-primary" disabled={promoBusy}>
+                {promoBusy ? '…' : 'Застосувати'}
+              </button>
+            </form>
+          ) : (
+            <p className="promo-login"><Link to="/login">Увійдіть</Link>, щоб застосувати промокод.</p>
+          )}
+          {promoResult && (
+            <p className={`promo-result ${promoResult.kind}`} role="status">
+              {promoResult.text}
+              {promoResult.chat && <> · <Link to="/chat">До гадання →</Link></>}
+            </p>
+          )}
+          {discount && (
+            <p className="promo-login">
+              Щоб отримати тариф зі знижкою {discount.percent}%, <Link to="/support">напишіть розробнику</Link>: він бачить вашу знижку.
+            </p>
+          )}
           <div className="promo-grid promo-grid-single">
             <div className="promo">
               <div className="promo-tag">Слідкуйте за новинами</div>

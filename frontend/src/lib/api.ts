@@ -306,7 +306,7 @@ export interface AdminUser {
   subscriptionExpiresAt: string | null
 }
 
-/** Картка користувача в адмінці: профіль + цифри активності (без вмісту чатів). */
+/** Картка користувача в адмінці: профіль + цифри активності. Самі переписки — окремим запитом. */
 export interface AdminUserDetails extends AdminUser {
   conversationsCount: number
   messagesCount: number
@@ -316,6 +316,58 @@ export interface AdminUserDetails extends AdminUser {
   chatMessagesLimit: number
   maxCards: number
   supportMessagesCount: number
+  activeDiscount: PromoDiscount | null
+}
+
+export interface AdminConversation {
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+  messagesCount: number
+  readingsCount: number
+}
+
+export interface AdminMessage {
+  id: string
+  role: string
+  content: string
+  createdAt: string
+  cardsJson: string | null
+}
+
+export interface PromoDiscount {
+  code: string
+  percent: number
+}
+
+export interface Promo {
+  id: string
+  code: string
+  name: string
+  type: 'Discount' | 'Subscription'
+  discountPercent: number | null
+  grantRole: 'Premium' | 'Vip' | null
+  grantDays: number | null
+  maxRedemptions: number | null
+  redemptionsCount: number
+  expiresAt: string | null
+  isActive: boolean
+  createdAt: string
+}
+
+export type NewPromo = Pick<Promo,
+  'code' | 'name' | 'type' | 'discountPercent' | 'grantRole' | 'grantDays' | 'maxRedemptions' | 'expiresAt'>
+
+export const promoApi = {
+  redeem: (code: string) =>
+    api<{ type: Promo['type']; message: string; discount: PromoDiscount | null }>('/api/promo/redeem', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
+
+  /** undefined — чинної знижки немає (204). */
+  discount: () => api<PromoDiscount | undefined>('/api/promo/discount'),
 }
 
 export interface AnalyticsSummary {
@@ -377,6 +429,19 @@ export const adminApi = {
       method: 'PUT',
       body: JSON.stringify({ Role: role, Days: days }),
     }),
+
+  /** Переписки користувача з Lunaris: лише читання. */
+  userConversations: (id: string) => api<AdminConversation[]>(`/api/admin/users/${id}/conversations`),
+  userConversation: (id: string, conversationId: string) =>
+    api<AdminMessage[]>(`/api/admin/users/${id}/conversations/${conversationId}`),
+
+  /** Промокоди. */
+  promos: () => api<Promo[]>('/api/admin/promos'),
+  createPromo: (promo: NewPromo) =>
+    api<Promo>('/api/admin/promos', { method: 'POST', body: JSON.stringify(promo) }),
+  setPromoActive: (id: string, isActive: boolean) =>
+    api<void>(`/api/admin/promos/${id}/active`, { method: 'PUT', body: JSON.stringify({ isActive }) }),
+  deletePromo: (id: string) => api<void>(`/api/admin/promos/${id}`, { method: 'DELETE' }),
 
   /** GET /api/admin/analytics?days=N — відвідуваність і воронка. */
   analytics: (days: number) => api<AnalyticsSummary>(`/api/admin/analytics?days=${days}`),

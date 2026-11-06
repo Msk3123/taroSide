@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { adminApi, UNLIMITED, type AdminUser, type AdminUserDetails } from '../../lib/api'
+import UserConversations from './UserConversations'
 
 type PaidRole = 'Free' | 'Premium' | 'Vip'
 
@@ -23,8 +24,7 @@ interface Props {
 }
 
 /**
- * Картка користувача: профіль, активність і видача тарифу на термін.
- * Вміст розкладів не показуємо — лише цифри (конфіденційність питань людини).
+ * Картка користувача: профіль, активність, переписки з Lunaris і видача тарифу на термін.
  */
 export default function UserDetailsModal({ userId, onClose, onUpdated, onWrite }: Props) {
   const [u, setU] = useState<AdminUserDetails | null>(null)
@@ -81,6 +81,9 @@ export default function UserDetailsModal({ userId, onClose, onUpdated, onWrite }
               <div><span className="l">Листів у підтримку</span><span className="v">{u.supportMessagesCount}</span></div>
               <div><span className="l">Сьогодні розкладів</span><span className="v">{u.dailyQuestionsUsed} / {lim(u.readingsLimit)}</span></div>
               <div><span className="l">Сьогодні повідомлень</span><span className="v">{u.dailyChatMessagesUsed} / {lim(u.chatMessagesLimit)}</span></div>
+              {u.activeDiscount && (
+                <div><span className="l">Знижка за промокодом</span><span className="v">{u.activeDiscount.percent}% · {u.activeDiscount.code}</span></div>
+              )}
             </div>
 
             {u.role === 'Admin' ? (
@@ -112,6 +115,8 @@ export default function UserDetailsModal({ userId, onClose, onUpdated, onWrite }
               </div>
             )}
             {msg && <div className={`admin-status ${msg.kind}`}>{msg.text}</div>}
+
+            <UserConversations userId={u.id} />
           </>
         )}
       </div>

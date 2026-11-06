@@ -17,13 +17,6 @@ public class CardRepository : ICardRepository
         _db = db;
     }
 
-    public async Task<TarotCard> CreateAsync(TarotCard card)
-    {
-        _db.TarotCards.Add(card);
-        await _db.SaveChangesAsync();
-        return card; // після SaveChangesAsync — card.Id вже заповнений БД
-    }
-
     public async Task<TarotCard?> GetByIdAsync(int id)
     {
         return await _db.TarotCards.FindAsync(id);

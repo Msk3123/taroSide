@@ -14,8 +14,8 @@ public class AdminUserDto
     public DateTime? SubscriptionExpiresAt { get; set; }
 }
 
-// Картка користувача в адмінці: профіль + активність. Вміст розкладів/чатів свідомо НЕ віддаємо —
-// адмін бачить цифри, а не особисті питання людини (див. принцип «Конфіденційність» на сторінці About).
+// Картка користувача в адмінці: профіль + активність. Самі переписки — окремим запитом,
+// який пишеться в лог (див. принцип «Конфіденційність» на сторінці About).
 public class AdminUserDetailsDto : AdminUserDto
 {
     public int ConversationsCount { get; set; }
@@ -26,6 +26,26 @@ public class AdminUserDetailsDto : AdminUserDto
     public int ChatMessagesLimit { get; set; }
     public int MaxCards { get; set; }
     public int SupportMessagesCount { get; set; }
+    public PromoDiscountDto? ActiveDiscount { get; set; }
+}
+
+public class AdminConversationDto
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public int MessagesCount { get; set; }
+    public int ReadingsCount { get; set; }
+}
+
+public class AdminMessageDto
+{
+    public Guid Id { get; set; }
+    public string Role { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public string? CardsJson { get; set; }
 }
 
 // Тіло PUT /api/admin/users/{id}/subscription.

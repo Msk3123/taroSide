@@ -14,24 +14,6 @@ public class CardService : ICardService
         _cardRepository = cardRepository;
     }
 
-    public async Task<TarotCard> CreateCardAsync(CreateTarotCardDto dto)
-    {
-        var card = new TarotCard
-        {
-            Name = dto.Name,
-            NameUkr = dto.NameUkr,
-            Arcana = dto.Arcana,
-            Suit = dto.Suit,
-            UprightMeaning = dto.UprightMeaning,
-            ReversedMeaning = dto.ReversedMeaning,
-            Keywords = dto.Keywords,
-            Symbol = dto.Symbol,
-            ImageUrl = dto.ImageUrl
-        };
-
-        return await _cardRepository.CreateAsync(card);
-    }
-
     public async Task<TarotCard?> GetCardAsync(int id)
     {
         return await _cardRepository.GetByIdAsync(id);

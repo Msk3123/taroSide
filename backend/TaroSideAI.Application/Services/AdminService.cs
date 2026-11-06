@@ -12,9 +12,12 @@ public class AdminService : IAdminService
 {
     private readonly IAdminRepository _adminRepository;
     private readonly UserManager<AppUser> _userManager;
+    private readonly IPromoRepository _promoRepository;
 
-    public AdminService(IAdminRepository adminRepository, UserManager<AppUser> userManager)
+    public AdminService(IAdminRepository adminRepository, UserManager<AppUser> userManager,
+        IPromoRepository promoRepository)
     {
+        _promoRepository = promoRepository;
         _adminRepository = adminRepository;
         _userManager = userManager;
     }
@@ -39,6 +42,8 @@ public class AdminService : IAdminService
         if (!result.Succeeded)
             throw new ValidationException(string.Join(", ", result.Errors.Select(e => e.Description)));
 
+        if (role is UserRole.Premium or UserRole.Vip)
+            await _promoRepository.ConsumeDiscountsAsync(userId);
 
         return ToDto(user);
     }
@@ -50,6 +55,7 @@ public class AdminService : IAdminService
 
         var activity = await _adminRepository.GetUserActivityAsync(userId);
         var policy = RolePolicies.For(user.Role);
+        var discount = await _promoRepository.GetActiveDiscountAsync(userId);
 
         return new AdminUserDetailsDto
         {
@@ -68,7 +74,10 @@ public class AdminService : IAdminService
             SupportMessagesCount = activity.Support,
             ReadingsLimit = policy.MaxReadingsPerDay,
             ChatMessagesLimit = policy.MaxChatMessagesPerDay,
-            MaxCards = policy.MaxCards
+            MaxCards = policy.MaxCards,
+            ActiveDiscount = discount is null
+                ? null
+                : new PromoDiscountDto { Code = discount.Code, Percent = discount.DiscountPercent ?? 0 }
         };
     }
 
@@ -94,8 +103,21 @@ public class AdminService : IAdminService
         if (!result.Succeeded)
             throw new ValidationException(string.Join(", ", result.Errors.Select(e => e.Description)));
 
+        // Знижку враховано під час продажу тарифу: повторно вона не показується.
+        if (role is UserRole.Premium or UserRole.Vip)
+            await _promoRepository.ConsumeDiscountsAsync(userId);
+
         return ToDto(user);
     }
+
+    public async Task<List<AdminConversationDto>?> GetUserConversationsAsync(Guid userId)
+    {
+        if (await _userManager.FindByIdAsync(userId.ToString()) is null) return null;
+        return await _adminRepository.GetUserConversationsAsync(userId);
+    }
+
+    public Task<List<AdminMessageDto>?> GetUserConversationMessagesAsync(Guid userId, Guid conversationId)
+        => _adminRepository.GetUserConversationMessagesAsync(userId, conversationId);
 
     public async Task<bool> DeleteUserAsync(Guid userId)
     {

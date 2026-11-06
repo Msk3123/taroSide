@@ -21,6 +21,7 @@ public static class ApplicationDI
         services.AddScoped<IMatrixService, MatrixService>();
         services.AddScoped<IAnalyticsService, AnalyticsService>();
         services.AddScoped<ISupportService, SupportService>();
+        services.AddScoped<IPromoService, PromoService>();
 
         // TokenService — внутрішня утиліта (генерація JWT), свідомо без інтерфейсу
         services.AddScoped<TokenService>();
